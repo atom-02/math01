@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>무게중심은 왜 움직이지 않을까</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+window.MathJax={
+  tex:{ inlineMath:[['\\(','\\)']], displayMath:[['\\[','\\]']], packages:{'[+]':['cancel']} },
+  loader:{load:['[tex]/cancel']},
+  options:{skipHtmlTags:['script','noscript','style','textarea','pre']},
+  startup:{typeset:true}
+};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+:root{
+  --paper:#F7F6F3; --ink:#1B1F2A; --rule:#C9D4E3; --blue:#4A5CC5; --blue-soft:#EDEFFA;
+  --fire:#C2410C; --fire-soft:#FDF0E8; --mute:#8A8F9A;
+  --serif:'Gowun Batang',serif; --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{ background:var(--paper);color:var(--ink); font-family:var(--sans);line-height:1.7; padding:0 20px 100px;}
+.wrap{max-width:860px;margin:0 auto}
+header{padding:56px 0 32px;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;color:var(--mute);margin-bottom:14px;}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(28px,5vw,42px);line-height:1.3;}
+.sub{margin-top:12px;color:var(--mute);font-size:15px;max-width:52ch}
+.home-link { display: inline-block; margin-bottom: 20px; color: var(--blue); text-decoration: none; font-size: 14px; }
+.home-link:hover { text-decoration: underline; }
+nav{display:flex;margin:28px 0 36px;border:1px solid var(--rule);border-radius:10px;overflow:hidden;background:#fff;}
+nav button{flex:1;background:none;border:none;cursor:pointer;padding:13px 8px;font-family:var(--sans);font-size:13.5px;color:var(--mute);border-right:1px solid var(--rule);transition:background .15s;}
+nav button:last-child{border-right:none}
+nav button[aria-selected="true"]{background:var(--ink);color:#fff}
+nav button:disabled{opacity:.4;cursor:not-allowed}
+.stage{display:none;animation:rise .3s ease} .stage.on{display:block}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+h2{font-family:var(--serif);font-size:24px;font-weight:700;margin-bottom:8px}
+.lead{color:var(--mute);font-size:15px;margin-bottom:24px;max-width:60ch}
+.panel{background:#fff;border:1px solid var(--rule);border-radius:12px;padding:20px;margin-bottom:20px;}
+/* ... (원문 CSS 유지) ... */
+.controls{display:flex;flex-direction:column;gap:14px}
+.ctl{display:flex;align-items:center;gap:14px}
+.ctl label{font-family:var(--mono);font-size:15px;width:18px;color:var(--blue);font-weight:500}
+input[type=range]{
+  flex:1;-webkit-appearance:none;appearance:none;height:8px;
+  background:var(--rule);border-radius:4px;outline:none;margin: 12px 0;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:32px;height:32px;border-radius:50%;
+  background:var(--blue);cursor:pointer;border:4px solid #fff;
+  box-shadow:0 0 0 1px var(--blue);
+}
+input[type=range]::-moz-range-thumb{
+  width:32px;height:32px;border-radius:50%;background:var(--blue);
+  cursor:pointer;border:4px solid #fff;box-shadow:0 0 0 1px var(--blue);
+}
+input[type=range]:focus-visible{box-shadow:0 0 0 3px var(--blue-soft)}
+.ctl .val{font-family:var(--mono);font-size:16px;width:22px;text-align:right;font-weight:500}
+.ratio-line{font-family:var(--mono);font-size:20px;text-align:center;padding:12px;background:var(--blue-soft);border-radius:8px;color:var(--blue);margin-top:16px;font-weight:500;}
+svg{width:100%;height:auto;display:block;touch-action:none}
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:18px}
+.cell{background:var(--paper);border-radius:8px;padding:11px 13px}
+.cell .k{font-size:11.5px;color:var(--mute);font-family:var(--mono);}
+.cell .v{font-family:var(--mono);font-size:16px;margin-top:3px;}
+.cell.fixed{background:var(--fire-soft)} .cell.fixed .k,.cell.fixed .v{color:var(--fire)}
+.toggles{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.tog{display:flex;align-items:center;gap:9px;cursor:pointer;background:#fff;border:1px solid var(--rule);border-radius:8px;padding:10px 16px;font-family:var(--sans);font-size:14px;color:var(--mute);}
+.tog[aria-pressed="true"]{border-color:var(--ink);color:var(--ink);background:var(--paper)}
+.swatch{width:20px;height:0;border-top:2.5px dashed var(--rule);flex:none}
+.tog[aria-pressed="true"] .sw-abc{border-top-color:#8A8F9A} .tog[aria-pressed="true"] .sw-def{border-top-color:#4A5CC5}
+.hint{font-size:13.5px;color:var(--mute);margin-top:14px;border-top:1px solid var(--rule);padding-top:13px;}
+.presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.chip{background:#fff;border:1px solid var(--rule);border-radius:20px;padding:7px 15px;font-family:var(--mono);font-size:13px;cursor:pointer;}
+.log{margin-top:18px;border-top:1px solid var(--rule);padding-top:14px}
+.log-row{display:flex;gap:14px;padding:4px 0;border-bottom:1px dotted var(--rule);font-family:var(--mono);font-size:13px}
+.guess{display:flex;flex-direction:column;gap:10px;margin:18px 0}
+.guess button{text-align:left;background:#fff;border:1px solid var(--rule);border-radius:10px;padding:15px 18px;cursor:pointer;font-family:var(--sans);font-size:15px;}
+.guess button.picked{border-color:var(--ink);border-width:2px;background:var(--paper)}
+.verdict{margin-top:16px;padding:16px 18px;border-radius:10px;border-left:3px solid var(--fire);background:var(--fire-soft);display:none;}
+.verdict.on{display:block}
+.math{background:var(--paper);border-radius:8px;padding:6px 16px;margin:14px 0;overflow-x:auto;}
+.step{margin:22px 0}
+.reveal{border:none;background:var(--ink);color:#fff;border-radius:8px;padding:13px 24px;cursor:pointer;margin-top:6px}
+.hidden-proof{display:none} .hidden-proof.on{display:block;animation:rise .35s ease}
+.next{display:flex;justify-content:flex-end;margin-top:28px;}
+.next button{background:var(--ink);color:#fff;border:none;border-radius:8px;padding:13px 26px;cursor:pointer;}
+.next button:disabled{background:var(--rule);color:var(--mute);cursor:not-allowed}
+.note{font-family:var(--serif);font-size:17px;border-left:3px solid var(--blue);padding:4px 0 4px 18px;margin:24px 0;}
+@media(max-width:620px){nav button{flex-direction:column;gap:2px;font-size:12px;padding:10px 4px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <a href="index.html" class="home-link">← 처음으로 돌아가기</a>
+  <div class="eyebrow">고등학교 1학년 · 평면좌표</div>
+  <h1>무게중심은 왜 움직이지 않을까</h1>
+  <p class="sub">삼각형 ABC의 세 변을 같은 비율로 내분해 새 삼각형을 만듭니다. 비율을 바꿔 보고, 무슨 일이 일어나는지 직접 확인하세요.</p>
+</header>
+<nav id="nav">
+  <button data-s="0" aria-selected="true">01 관찰</button>
+  <button data-s="1">02 예측</button>
+  <button data-s="2">03 검증</button>
+  <button data-s="3" disabled>04 일반화</button>
+</nav>
+
+<section class="stage on" data-stage="0">
+  <h2>먼저 만져 보기</h2>
+  <p class="lead">A(−3, −2), B(1, 2), C(5, −6). 각 변을 m : n으로 내분한 점이 D, E, F입니다. 슬라이더를 움직여 보라색 삼각형이 어떻게 변하는지 보세요.</p>
+  <div class="panel">
+    <div class="controls">
+      <div class="ctl"><label for="m0">m</label><input type="range" id="m0" min="1" max="9" step="1" value="1"><span class="val" id="mv0">1</span></div>
+      <div class="ctl"><label for="n0">n</label><input type="range" id="n0" min="1" max="9" step="1" value="3"><span class="val" id="nv0">3</span></div>
+    </div>
+    <div class="ratio-line" id="ratio0">1 : 3</div>
+    <div class="toggles">
+      <button class="tog" id="togABC" aria-pressed="false" onclick="toggleMed('abc')"><span class="swatch sw-abc"></span>삼각형 ABC의 중선</button>
+      <button class="tog" id="togDEF" aria-pressed="false" onclick="toggleMed('def')"><span class="swatch sw-def"></span>삼각형 DEF의 중선</button>
+    </div>
+  </div>
+  <div class="panel">
+    <svg id="svg0" viewBox="0 0 680 440"></svg>
+    <div class="readout">
+      <div class="cell"><div class="k">D</div><div class="v" id="d0">—</div></div>
+      <div class="cell"><div class="k">E</div><div class="v" id="e0">—</div></div>
+      <div class="cell"><div class="k">F</div><div class="v" id="f0">—</div></div>
+    </div>
+    <p class="hint" id="hint0">중선은 꼭짓점과 마주 보는 변의 중점을 잇는 선입니다. 두 삼각형의 중선을 모두 켜 보세요.</p>
+  </div>
+  <div class="next"><button onclick="go(1)">다음 — 예측해 보기</button></div>
+</section>
+
+<section class="stage" data-stage="1">
+  <h2>움직이기 전에 답을 정하세요</h2>
+  <p class="lead">삼각형 DEF의 무게중심을 G라고 합시다. m과 n을 바꾸면 G는 어떻게 될까요? 확인하기 전에 하나를 고르세요. 고른 답은 계속 화면에 남습니다.</p>
+  <div class="guess" id="guess">
+    <button data-g="0">G도 D, E, F를 따라 함께 움직인다</button>
+    <button data-g="1">G는 움직이지만 항상 삼각형 ABC 안에 머문다</button>
+    <button data-g="2">G는 전혀 움직이지 않는다</button>
+    <button data-g="3">m &gt; n일 때와 m &lt; n일 때 서로 다르게 움직인다</button>
+  </div>
+  <div class="verdict" id="verdict"></div>
+  <div class="next"><button id="toV" disabled onclick="go(2)">다음 — 직접 확인하기</button></div>
+</section>
+
+<section class="stage" data-stage="2">
+  <h2>이제 확인하세요</h2>
+  <p class="lead" id="recall">주황색 십자 표시가 삼각형 DEF의 무게중심 G입니다. 슬라이더를 끝에서 끝까지 움직여 보세요.</p>
+  <div class="panel">
+    <div class="controls">
+      <div class="ctl"><label for="m2">m</label><input type="range" id="m2" min="1" max="9" step="1" value="1"><span class="val" id="mv2">1</span></div>
+      <div class="ctl"><label for="n2">n</label><input type="range" id="n2" min="1" max="9" step="1" value="3"><span class="val" id="nv2">3</span></div>
+    </div>
+    <div class="ratio-line" id="ratio2">1 : 3</div>
+    <div class="presets">
+      <button class="chip" onclick="preset(1,1)">1 : 1</button>
+      <button class="chip" onclick="preset(1,3)">1 : 3</button>
+      <button class="chip" onclick="preset(5,2)">5 : 2</button>
+      <button class="chip" onclick="preset(9,1)">9 : 1</button>
+      <button class="chip" onclick="preset(1,9)">1 : 9</button>
+    </div>
+  </div>
+  <div class="panel">
+    <svg id="svg2" viewBox="0 0 680 440"></svg>
+    <div class="readout">
+      <div class="cell"><div class="k">D</div><div class="v" id="d2">—</div></div>
+      <div class="cell"><div class="k">E</div><div class="v" id="e2">—</div></div>
+      <div class="cell"><div class="k">F</div><div class="v" id="f2">—</div></div>
+      <div class="cell fixed"><div class="k">G</div><div class="v" id="g2">—</div></div>
+    </div>
+    <div class="log">
+      <div class="log-rows" id="rows">슬라이더를 움직이면 여기에 기록됩니다.</div>
+    </div>
+  </div>
+  <div class="next"><button id="toG" disabled onclick="go(3)">다음 — 왜 그런지 밝히기</button></div>
+</section>
+
+<section class="stage" data-stage="3">
+  <h2>왜 항상 같을까</h2>
+  <p class="lead">숫자로 아무리 많이 확인해도 "항상"을 증명하지는 못합니다. 좌표를 문자로 바꿔서 계산해 봅시다.</p>
+  <div class="step">
+    <h3>설정</h3>
+    <div class="math">\[ D\left(\frac{mx_2+nx_1}{m+n},\ \frac{my_2+ny_1}{m+n}\right), E\left(\frac{mx_3+nx_2}{m+n},\dots\right), F\left(\frac{mx_1+nx_3}{m+n},\dots\right) \]</div>
+  </div>
+  <button class="reveal" id="revealBtn" onclick="showProof()">계산 이어 보기</button>
+  <div class="hidden-proof" id="proof">
+    <div class="step">
+      <h3>무게중심의 x좌표</h3>
+      <div class="math">\[ \frac{D_x+E_x+F_x}{3} = \frac{m(x_1+x_2+x_3)+n(x_1+x_2+x_3)}{3(m+n)} = \frac{(m+n)(x_1+x_2+x_3)}{3(m+n)} = \frac{x_1+x_2+x_3}{3} \]</div>
+    </div>
+    <div class="note">최종 식에 m도 n도 남아 있지 않으므로, 내분비를 어떻게 잡든 결과는 본래 삼각형의 무게중심과 같습니다.</div>
+  </div>
+</section>
+</div>
+
+<script>
+var A=[-3,-2],B=[1,2],C=[5,-6];
+var GX=(A[0]+B[0]+C[0])/3, GY=(A[1]+B[1]+C[1])/3;
+var seen={}, tries=0, guessed=false;
+
+function fmt(v){var r=Math.round(v*100)/100; if(Object.is(r,-0))r=0; return (r<0?'\u2212':'')+Math.abs(r);}
+function pair(p){return '('+fmt(p[0])+', '+fmt(p[1])+')';}
+function divide(m,n,P,Q){var s=m+n;return [(m*Q[0]+n*P[0])/s,(m*Q[1]+n*P[1])/s];}
+function ns(t,a){var e=document.createElementNS('http://www.w3.org/2000/svg',t);for(var k in a)e.setAttribute(k,a[k]);return e;}
+
+var OX=340,OY=220,U=34;
+function px(p){return [OX+p[0]*U, OY-p[1]*U];}
+function pts(arr){return arr.map(function(p){var q=px(p);return q[0]+','+q[1];}).join(' ');}
+function mid(P,Q){return [(P[0]+Q[0])/2,(P[1]+Q[1])/2];}
+
+function medians(g,P,Q,R,color,dash){
+  var tri=[[P,mid(Q,R)],[Q,mid(R,P)],[R,mid(P,Q)]];
+  for(var i=0;i<3;i++){
+    var a=px(tri[i][0]),b=px(tri[i][1]);
+    g.appendChild(ns('line',{x1:a[0],y1:a[1],x2:b[0],y2:b[1],stroke:color,'stroke-width':1.6,'stroke-dasharray':dash,opacity:.85}));
+    g.appendChild(ns('circle',{cx:b[0],cy:b[1],r:3,fill:color,opacity:.85}));
+  }
+}
+
+function render(svg,m,n,showG,med){
+  while(svg.firstChild)svg.removeChild(svg.firstChild);
+  var g=ns('g',{});
+  for(var i=-9;i<=9;i++) g.appendChild(ns('line',{x1:OX+i*U,y1:0,x2:OX+i*U,y2:440,stroke:'#C9D4E3','stroke-width':i===0?1.4:0.6,opacity:i===0?1:0.55}));
+  for(var j=-6;j<=6;j++) g.appendChild(ns('line',{x1:0,y1:OY-j*U,x2:680,y2:OY-j*U,stroke:'#C9D4E3','stroke-width':j===0?1.4:0.6,opacity:j===0?1:0.55}));
+
+  var D=divide(m,n,A,B),E=divide(m,n,B,C),F=divide(m,n,C,A);
+  g.appendChild(ns('polygon',{points:pts([A,B,C]),fill:'#8A8F9A',opacity:.07,stroke:'none'}));
+  g.appendChild(ns('polygon',{points:pts([A,B,C]),fill:'none',stroke:'#8A8F9A','stroke-width':1.4,'stroke-dasharray':'6 5','stroke-linejoin':'round'}));
+  g.appendChild(ns('polygon',{points:pts([D,E,F]),fill:'#4A5CC5',opacity:.13,stroke:'none'}));
+  g.appendChild(ns('polygon',{points:pts([D,E,F]),fill:'none',stroke:'#4A5CC5','stroke-width':2.4,'stroke-linejoin':'round'}));
+
+  if(med&&med.abc)medians(g,A,B,C,'#8A8F9A','4 4');
+  if(med&&med.def)medians(g,D,E,F,'#4A5CC5','4 4');
+
+  function dot(p,label,color,r,dx,dy){
+    var q=px(p); g.appendChild(ns('circle',{cx:q[0],cy:q[1],r:r,fill:color}));
+    var t=ns('text',{x:q[0]+dx,y:q[1]+dy,'font-size':15,'font-weight':600,fill:color,'font-family':'JetBrains Mono, monospace'});
+    t.textContent=label;g.appendChild(t);
+  }
+  dot(A,'A','#8A8F9A',4,-20,-9); dot(B,'B','#8A8F9A',4,9,-9); dot(C,'C','#8A8F9A',4,9,20);
+  dot(D,'D','#4A5CC5',5.5,9,-10); dot(E,'E','#4A5CC5',5.5,10,6); dot(F,'F','#4A5CC5',5.5,9,20);
+
+  if(showG){
+    var q=px([GX,GY]);
+    g.appendChild(ns('line',{x1:q[0]-15,y1:q[1],x2:q[0]+15,y2:q[1],stroke:'#C2410C','stroke-width':1.6}));
+    g.appendChild(ns('line',{x1:q[0],y1:q[1]-15,x2:q[0],y2:q[1]+15,stroke:'#C2410C','stroke-width':1.6}));
+    g.appendChild(ns('circle',{cx:q[0],cy:q[1],r:9,fill:'none',stroke:'#C2410C','stroke-width':1.8}));
+    g.appendChild(ns('circle',{cx:q[0],cy:q[1],r:4,fill:'#C2410C'}));
+    var gt=ns('text',{x:q[0]+20,y:q[1]-14,'font-size':16,'font-weight':600,fill:'#C2410C','font-family':'JetBrains Mono, monospace'});
+    gt.textContent='G';g.appendChild(gt);
+  }
+  svg.appendChild(g);
+  return {D:D,E:E,F:F};
+}
+
+var med={abc:false,def:false};
+function bind(mId,nId,mvId,nvId,rId,svgId,dId,eId,fId,gId,showG,onChange){
+  var mEl=document.getElementById(mId),nEl=document.getElementById(nId),svg=document.getElementById(svgId);
+  function upd(){
+    var m=+mEl.value,n=+nEl.value;
+    document.getElementById(mvId).textContent=m; document.getElementById(nvId).textContent=n; document.getElementById(rId).textContent=m+' : '+n;
+    var r=render(svg,m,n,showG,showG?null:med);
+    document.getElementById(dId).textContent=pair(r.D); document.getElementById(eId).textContent=pair(r.E); document.getElementById(fId).textContent=pair(r.F);
+    if(gId)document.getElementById(gId).textContent=pair([GX,GY]);
+    if(onChange)onChange(m,n);
+  }
+  mEl.addEventListener('input',upd); nEl.addEventListener('input',upd); upd();
+  return upd;
+}
+
+var upd0=bind('m0','n0','mv0','nv0','ratio0','svg0','d0','e0','f0',null,false,null);
+function toggleMed(which){ med[which]=!med[which]; document.getElementById('togABC').setAttribute('aria-pressed',med.abc); document.getElementById('togDEF').setAttribute('aria-pressed',med.def); upd0(); }
+
+var upd2=bind('m2','n2','mv2','nv2','ratio2','svg2','d2','e2','f2','g2',true,function(m,n){
+  var key=m+':'+n; if(seen[key])return; seen[key]=1; tries++;
+  var box=document.getElementById('rows'); if(tries===1)box.innerHTML='';
+  var row=document.createElement('div'); row.className='log-row';
+  row.innerHTML='<span>'+m+' : '+n+'</span><span>G = <span style="color:#C2410C;font-weight:500;">'+pair([GX,GY])+'</span></span>';
+  box.insertBefore(row,box.firstChild);
+  if(tries>=4)document.getElementById('toG').disabled=false;
+});
+function preset(m,n){ document.getElementById('m2').value=m; document.getElementById('n2').value=n; upd2(); }
+
+document.getElementById('guess').addEventListener('click',function(ev){
+  var b=ev.target.closest('button');if(!b)return;
+  var picks=this.querySelectorAll('button'); for(var i=0;i<picks.length;i++){picks[i].classList.remove('picked');picks[i].disabled=true;}
+  b.classList.add('picked');
+  var v=document.getElementById('verdict'); v.className='verdict on'; v.innerHTML='<b>기록해 두었습니다.</b> 다음 화면에서 직접 확인하세요.';
+  document.getElementById('toV').disabled=false;
+});
+
+function go(i){
+  var stages=document.querySelectorAll('.stage'); for(var k=0;k<stages.length;k++)stages[k].classList.toggle('on',+stages[k].dataset.stage===i);
+  var btns=document.querySelectorAll('#nav button'); for(var j=0;j<btns.length;j++)btns[j].setAttribute('aria-selected',+btns[j].dataset.s===i);
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+document.getElementById('nav').addEventListener('click',function(ev){ var b=ev.target.closest('button'); if(b&&!b.disabled)go(+b.dataset.s); });
+document.getElementById('toG').addEventListener('click',function(){ document.querySelector('#nav button[data-s="3"]').disabled=false; });
+
+function showProof(){ document.getElementById('proof').classList.add('on'); document.getElementById('revealBtn').style.display='none'; }
+</script>
+</body>
+</html>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>삼각형 내각 및 외각의 이등분선 정리 증명</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        svg text { font-family: 'Arial', sans-serif; font-size: 14px; font-weight: bold; }
+        .diagram-container { background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 0.5rem; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 p-6 font-sans">
+
+    <div class="max-w-5xl mx-auto space-y-12">
+        <div class="text-center mt-8">
+            <h1 class="text-3xl font-bold text-gray-900 mb-4">삼각형의 각의 이등분선 정리와 증명</h1>
+            <p class="text-gray-600">아래 도형에서 평행선(빨간색 점선)과 각의 크기(파란색/녹색 부채꼴)를 확인해 보세요.</p>
+            <div class="mt-4"><a href="index.html" class="text-blue-600 hover:underline">← 목록으로 돌아가기</a></div>
+        </div>
+        <!-- Section 1: Interior Angle Bisector -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-8 items-center">
+            <div class="w-full lg:w-1/2 diagram-container flex justify-center p-4">
+                <svg id="svg-interior" class="w-full max-w-sm h-auto" viewBox="0 0 400 420"></svg>
+            </div>
+            <div class="w-full lg:w-1/2 space-y-4">
+                <h2 class="text-2xl font-semibold text-blue-700">1. 내각의 이등분선 정리</h2>
+                <div class="bg-blue-50 p-4 rounded-lg font-mono text-center text-lg font-bold text-blue-800">
+                    AB : AC = BD : CD
+                </div>
+                <ul class="list-disc list-inside space-y-2 text-gray-700 mt-4 leading-relaxed">
+                    <li><span class="font-semibold">보조선:</span> 점 C에서 선분 AD와 평행하게 선을 긋고, 연장된 BA와 만나는 점을 E로 둡니다.</li>
+                    <li><span class="font-semibold">평행선의 성질:</span> AD // EC 이므로 <br>∠BAD = ∠AEC (동위각), ∠CAD = ∠ACE (엇각)</li>
+                    <li><span class="font-semibold">이등변삼각형 유도:</span> 따라서 ∠AEC = ∠ACE 가 되어 △ACE는 <span class="text-red-600 font-bold">AC = AE</span> 인 이등변삼각형이 됩니다.</li>
+                    <li><span class="font-semibold">비례식 결론:</span> △BCE에서 평행선 길이에 비례에 따라 BA : AE = BD : CD. AE 자리에 AC를 넣으면 증명 완료!</li>
+                </ul>
+            </div>
+        </div>
+        <!-- Section 2: Exterior Angle Bisector -->
+        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col lg:flex-row gap-8 items-center">
+            <div class="w-full lg:w-1/2 diagram-container flex justify-center p-4">
+                <svg id="svg-exterior" class="w-full max-w-sm h-auto" viewBox="0 0 400 350"></svg>
+            </div>
+            <div class="w-full lg:w-1/2 space-y-4">
+                <h2 class="text-2xl font-semibold text-green-700">2. 외각의 이등분선 정리</h2>
+                <div class="bg-green-50 p-4 rounded-lg font-mono text-center text-lg font-bold text-green-800">
+                    AB : AC = BD : CD
+                </div>
+                <ul class="list-disc list-inside space-y-2 text-gray-700 mt-4 leading-relaxed">
+                    <li><span class="font-semibold">보조선:</span> 점 C에서 외각의 이등분선 AD와 평행하게 선을 그어 선분 AB와 만나는 점을 E로 둡니다.</li>
+                    <li><span class="font-semibold">평행선의 성질:</span> AD // EC 이므로 <br>∠FAD = ∠AEC (동위각), ∠DAC = ∠ACE (엇각)</li>
+                    <li><span class="font-semibold">이등변삼각형 유도:</span> 따라서 ∠AEC = ∠ACE 가 되어 △ACE는 역시 <span class="text-red-600 font-bold">AC = AE</span> 인 이등변삼각형이 됩니다.</li>
+                    <li><span class="font-semibold">비례식 결론:</span> 큰 △ABD에서 평행선 비례 원리에 따라 BA : EA = BD : CD. EA 자리에 AC를 넣으면 증명 완료!</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const svgNS = "http://www.w3.org/2000/svg";
+
+        function drawLine(svg, p1, p2, stroke, width, dash = "") {
+            const line = document.createElementNS(svgNS, 'line');
+            line.setAttribute('x1', p1.x); line.setAttribute('y1', p1.y);
+            line.setAttribute('x2', p2.x); line.setAttribute('y2', p2.y);
+            line.setAttribute('stroke', stroke);
+            line.setAttribute('stroke-width', width);
+            if (dash) line.setAttribute('stroke-dasharray', dash);
+            svg.appendChild(line);
+        }
+
+        function drawPolygon(svg, points, fill, stroke, width) {
+            const poly = document.createElementNS(svgNS, 'polygon');
+            const pts = points.map(p => `${p.x},${p.y}`).join(' ');
+            poly.setAttribute('points', pts);
+            poly.setAttribute('fill', fill);
+            poly.setAttribute('stroke', stroke);
+            poly.setAttribute('stroke-width', width);
+            svg.appendChild(poly);
+        }
+
+        function drawText(svg, point, text, dx=0, dy=0) {
+            const t = document.createElementNS(svgNS, 'text');
+            t.setAttribute('x', point.x + dx);
+            t.setAttribute('y', point.y + dy);
+            t.setAttribute('fill', '#1f2937');
+            t.textContent = text;
+            svg.appendChild(t);
+        }
+
+        function drawAngleWedge(svg, center, p1, p2, radius, color) {
+            let a1 = Math.atan2(p1.y - center.y, p1.x - center.x);
+            let a2 = Math.atan2(p2.y - center.y, p2.x - center.x);
+            if (a1 < 0) a1 += 2 * Math.PI;
+            if (a2 < 0) a2 += 2 * Math.PI;
+            if (a1 > a2) { let temp = a1; a1 = a2; a2 = temp; }
+            if (a2 - a1 > Math.PI) {
+                let temp = a1; a1 = a2; a2 = temp + 2 * Math.PI;
+            }
+            const x1 = center.x + radius * Math.cos(a1);
+            const y1 = center.y + radius * Math.sin(a1);
+            const x2 = center.x + radius * Math.cos(a2);
+            const y2 = center.y + radius * Math.sin(a2);
+            const largeArc = (a2 - a1 > Math.PI) ? 1 : 0;
+            const path = document.createElementNS(svgNS, 'path');
+            const d = `M ${center.x} ${center.y} L ${x1} ${y1} A ${radius} ${radius} 0 ${largeArc} 1 ${x2} ${y2} Z`;
+            path.setAttribute('d', d);
+            path.setAttribute('fill', color);
+            path.setAttribute('stroke', 'rgba(0,0,0,0.2)');
+            path.setAttribute('stroke-width', '1');
+            svg.appendChild(path);
+        }
+
+        function renderInteriorDiagram() {
+            const svg = document.getElementById('svg-interior');
+            const shiftY = 40;
+            const pts = {
+                A: {x: 140, y: 190 + shiftY},
+                B: {x: 40, y: 340 + shiftY},
+                C: {x: 340, y: 340 + shiftY},
+                D: {x: 165.7, y: 340 + shiftY}
+            };
+            pts.E = { x: pts.A.x + 1.3868 * 100, y: pts.A.y - 1.3868 * 150 };
+
+            const wedgeColor = 'rgba(59, 130, 246, 0.4)';
+            drawAngleWedge(svg, pts.A, pts.B, pts.D, 25, wedgeColor);
+            drawAngleWedge(svg, pts.A, pts.D, pts.C, 25, wedgeColor);
+            drawAngleWedge(svg, pts.E, pts.A, pts.C, 25, wedgeColor);
+            drawAngleWedge(svg, pts.C, pts.E, pts.A, 25, wedgeColor);
+
+            drawPolygon(svg, [pts.A, pts.B, pts.C], 'none', '#1f2937', 2);
+            drawLine(svg, pts.A, pts.D, '#ef4444', 2); 
+            drawLine(svg, pts.A, pts.E, '#9ca3af', 2, "5,5");
+            drawLine(svg, pts.C, pts.E, '#ef4444', 2, "5,5"); 
+            
+            drawLine(svg, {x: (pts.A.x+pts.C.x)/2 - 5, y: (pts.A.y+pts.C.y)/2 + 5}, {x: (pts.A.x+pts.C.x)/2 + 5, y: (pts.A.y+pts.C.y)/2 - 5}, '#ef4444', 2);
+            drawLine(svg, {x: (pts.E.x+pts.A.x)/2 - 5, y: (pts.E.y+pts.A.y)/2 + 5}, {x: (pts.E.x+pts.A.x)/2 + 5, y: (pts.E.y+pts.A.y)/2 - 5}, '#ef4444', 2);
+
+            drawText(svg, pts.A, "A", -15, 0); drawText(svg, pts.B, "B", -15, 15);
+            drawText(svg, pts.C, "C", 10, 15); drawText(svg, pts.D, "D", -5, 20); drawText(svg, pts.E, "E", 10, 0);
+        }
+
+        function renderExteriorDiagram() {
+            const svg = document.getElementById('svg-exterior');
+            const pts = {
+                A: {x: 185, y: 163}, B: {x: 30, y: 250}, C: {x: 160, y: 250},
+                D: {x: 290, y: 250}, F: {x: 247, y: 128}, E: {x: 107.5, y: 206.5}
+            };
+
+            const wedgeColor = 'rgba(16, 185, 129, 0.4)';
+            drawAngleWedge(svg, pts.A, pts.F, pts.D, 25, wedgeColor);
+            drawAngleWedge(svg, pts.A, pts.D, pts.C, 25, wedgeColor);
+            drawAngleWedge(svg, pts.E, pts.F, pts.C, 25, wedgeColor);
+            drawAngleWedge(svg, pts.C, pts.E, pts.A, 25, wedgeColor);
+
+            drawPolygon(svg, [pts.A, pts.B, pts.C], 'none', '#1f2937', 2);
+            drawLine(svg, pts.A, pts.F, '#1f2937', 2, "5,5"); 
+            drawLine(svg, pts.C, pts.D, '#1f2937', 2, "5,5"); 
+            
+            drawLine(svg, pts.A, pts.D, '#ef4444', 2); 
+            drawLine(svg, pts.C, pts.E, '#ef4444', 2, "5,5");
+
+            drawLine(svg, {x: (pts.A.x+pts.C.x)/2 - 5, y: (pts.A.y+pts.C.y)/2 - 5}, {x: (pts.A.x+pts.C.x)/2 + 5, y: (pts.A.y+pts.C.y)/2 + 5}, '#ef4444', 2);
+            drawLine(svg, {x: (pts.E.x+pts.A.x)/2 - 5, y: (pts.E.y+pts.A.y)/2 - 5}, {x: (pts.E.x+pts.A.x)/2 + 5, y: (pts.E.y+pts.A.y)/2 + 5}, '#ef4444', 2);
+
+            drawText(svg, pts.A, "A", -5, -10); drawText(svg, pts.B, "B", -15, 15);
+            drawText(svg, pts.C, "C", -5, 20); drawText(svg, pts.D, "D", 10, 15);
+            drawText(svg, pts.E, "E", -20, -5); drawText(svg, pts.F, "F", 10, 0);
+        }
+
+        renderInteriorDiagram();
+        renderExteriorDiagram();
+    </script>
+</body>
+</html>

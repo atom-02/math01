@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>두 직선에서 같은 거리에 있는 점의 자취</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+window.MathJax={tex:{inlineMath:[['\\(','\\)']],displayMath:[['\\[','\\]']]},options:{skipHtmlTags:['script','noscript','style','textarea','pre']},startup:{typeset:true}};
+</script>
+<script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+<style>
+:root{
+  --paper:#F7F6F3; --ink:#1B1F2A; --rule:#C9D4E3; --blue:#4A5CC5; --blue-soft:#EDEFFA;
+  --fire:#C2410C; --green:#10B981; --green-soft:#D1FAE5; --mute:#8A8F9A;
+  --serif:'Gowun Batang',serif; --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; --mono:'JetBrains Mono',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{ background:var(--paper);color:var(--ink); font-family:var(--sans);line-height:1.7; padding:0 20px 100px; }
+.wrap{max-width:860px;margin:0 auto}
+header{padding:56px 0 32px;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;color:var(--mute);margin-bottom:14px;}
+h1{font-family:var(--serif);font-weight:700;font-size:clamp(28px,5vw,42px);line-height:1.3;}
+.sub{margin-top:12px;color:var(--mute);font-size:15px;max-width:52ch}
+.home-link { display: inline-block; margin-bottom: 20px; color: var(--blue); text-decoration: none; font-size: 14px; }
+.home-link:hover { text-decoration: underline; }
+
+nav{display:flex;margin:28px 0 36px;border:1px solid var(--rule);border-radius:10px;overflow:hidden;background:#fff;}
+nav button{flex:1;background:none;border:none;cursor:pointer;padding:13px 8px;font-family:var(--sans);font-size:13.5px;color:var(--mute);border-right:1px solid var(--rule);transition:background .15s;}
+nav button:last-child{border-right:none}
+nav button[aria-selected="true"]{background:var(--ink);color:#fff}
+.stage{display:none;animation:rise .3s ease} .stage.on{display:block}
+@keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+h2{font-family:var(--serif);font-size:24px;font-weight:700;margin-bottom:8px}
+.lead{color:var(--mute);font-size:15px;margin-bottom:24px;max-width:60ch}
+.panel{background:#fff;border:1px solid var(--rule);border-radius:12px;padding:20px;margin-bottom:20px;}
+
+canvas{width:100%;height:auto;display:block;background-color: var(--paper); border-radius: 8px; touch-action: none; cursor: crosshair;}
+.readout{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:18px}
+.cell{background:var(--paper);border-radius:8px;padding:11px 13px; transition: background 0.2s;}
+.cell .k{font-size:11.5px;color:var(--mute);font-family:var(--mono);}
+.cell .v{font-family:var(--mono);font-size:16px;margin-top:3px;font-weight:500;}
+.cell.match{background:var(--green-soft);} .cell.match .k, .cell.match .v{color:var(--green);}
+.controls{display:flex; gap:10px; flex-wrap:wrap; margin-top:16px}
+.btn{background:#fff;border:1px solid var(--rule);border-radius:8px;padding:14px 20px;font-family:var(--sans);font-size:15px;cursor:pointer;}
+.btn:hover{border-color:var(--blue); color:var(--blue); background:var(--blue-soft)}
+.btn.primary{background:var(--blue); color:#fff; border-color:var(--blue)}
+.btn.primary:hover{background:#3a479d}
+.btn:disabled{opacity:0.5; cursor:not-allowed;}
+.hint{font-size:13.5px;color:var(--mute);margin-top:14px;border-top:1px solid var(--rule);padding-top:13px;}
+.math{background:var(--paper);border-radius:8px;padding:6px 16px;margin:14px 0;overflow-x:auto;}
+.step{margin:22px 0}
+.step h3{font-family:var(--mono);font-size:12px;color:var(--mute);margin-bottom:8px;}
+.note{font-family:var(--serif);font-size:17px;border-left:3px solid var(--blue);padding:4px 0 4px 18px;margin:24px 0;}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <a href="index.html" class="home-link">← 처음으로 돌아가기</a>
+  <div class="eyebrow">고등학교 1학년 · 평면좌표 · 자취의 방정식</div>
+  <h1>두 직선에서 같은 거리에 있는 점의 자취</h1>
+  <p class="sub">임의의 점을 움직여 두 직선까지의 거리를 비교해 봅니다. 두 거리가 같아지는 지점들을 모으면 어떤 도형이 될까요?</p>
+</header>
+
+<nav id="nav">
+  <button data-s="0" aria-selected="true">01 실험 및 관찰</button>
+  <button data-s="1">02 자취 완성</button>
+  <button data-s="2">03 수학적 증명</button>
+</nav>
+
+<section class="stage on" data-stage="0">
+  <h2>점 옮겨보기</h2>
+  <p class="lead">검은색 점 P를 마우스로 드래그해 보세요. 점 P에서 두 직선까지의 거리가 같아지면 초록색으로 빛납니다.</p>
+  <div class="panel">
+    <canvas id="locusCanvas" width="800" height="500"></canvas>
+    <div class="readout">
+      <div class="cell" id="cell-p"><div class="k">점 P 좌표</div><div class="v"><span id="val-px">0</span>, <span id="val-py">0</span></div></div>
+      <div class="cell" id="cell-d1"><div class="k">직선 L₁까지의 거리 (d₁)</div><div class="v"><span id="val-d1">0.00</span></div></div>
+      <div class="cell" id="cell-d2"><div class="k">직선 L₂까지의 거리 (d₂)</div><div class="v"><span id="val-d2">0.00</span></div></div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="btn-record" disabled>현재 위치에 점 찍기</button>
+      <button class="btn primary" id="btn-auto">자동으로 여러 점 찾기</button>
+      <button class="btn" id="btn-clear">기록 지우기</button>
+    </div>
+    <p class="hint" id="hint-text">점 P를 드래그하여 d₁과 d₂의 값이 같아지도록 만들어 보세요.</p>
+  </div>
+  <div class="flex justify-end mt-8"><button class="btn primary" onclick="go(1)">다음 — 자취 완성하기</button></div>
+</section>
+
+<section class="stage" data-stage="1">
+  <h2>자취의 정체 파악하기</h2>
+  <p class="lead">우리가 찍었던 점들을 이으면 어떤 모양이 되나요? 정답 버튼을 눌러 점들이 만들어낸 도형의 진짜 정체를 확인해 보세요.</p>
+  <div class="panel">
+    <canvas id="resultCanvas" width="800" height="500"></canvas>
+    <div class="controls justify-center mt-4">
+      <button class="btn primary" id="btn-reveal">정답(각의 이등분선) 보기</button>
+    </div>
+  </div>
+  <div class="flex justify-end mt-8"><button class="btn primary" onclick="go(2)">다음 — 수식으로 증명하기</button></div>
+</section>
+
+<section class="stage" data-stage="2">
+  <h2>수식으로 증명하기</h2>
+  <p class="lead">눈으로 확인한 사실을 식으로 증명해 봅시다. 이것이 바로 '자취의 방정식'을 구하는 과정입니다.</p>
+  <div class="step">
+    <h3>1. 조건 설정</h3>
+    <div class="math">\[ L_1:\ 2x - y = 0 \quad / \quad L_2:\ x + 2y = 0 \]</div>
+  </div>
+  <div class="step">
+    <h3>2. 점과 직선 사이의 거리 공식 적용</h3>
+    <p>점 \( P(x, y) \)에서 두 직선에 이르는 거리가 같아야 하므로, \( d_1 = d_2 \) 가 성립합니다.</p>
+    <div class="math">\[ \frac{|2x - y|}{\sqrt{2^2 + (-1)^2}} = \frac{|x + 2y|}{\sqrt{1^2 + 2^2}} \quad \Rightarrow \quad |2x - y| = |x + 2y| \]</div>
+  </div>
+  <div class="step">
+    <h3>3. 자취의 방정식 도출</h3>
+    <p>절댓값 기호를 풀 때는 우변에 \( \pm \) 기호가 붙습니다.</p>
+    <p class="mt-4"><b>경우 1: \( +\) 일 때</b></p>
+    <div class="math">\[ 2x - y = x + 2y \quad \Rightarrow \quad x - 3y = 0 \]</div>
+    <p class="mt-4"><b>경우 2: \( -\) 일 때</b></p>
+    <div class="math">\[ 2x - y = -(x + 2y) \quad \Rightarrow \quad 3x + y = 0 \]</div>
+  </div>
+  <div class="note">결론적으로 우리가 구한 자취는 \( x - 3y = 0 \) 과 \( 3x + y = 0 \) 두 개의 직선입니다. 두 기울기의 곱이 -1이므로 서로 직교하는 <b>각의 이등분선</b>이 됩니다.</div>
+</section>
+</div>
+
+<script>
+const canvas1 = document.getElementById('locusCanvas'); const ctx1 = canvas1.getContext('2d');
+const canvas2 = document.getElementById('resultCanvas'); const ctx2 = canvas2.getContext('2d');
+let cw = canvas1.width, ch = canvas1.height, OX = cw / 2, OY = ch / 2, UNIT = 25;
+const L1 = { a: 2, b: -1, c: 0, color: '#1B1F2A', name: 'L₁' };
+const L2 = { a: 1, b: 2, c: 0, color: '#1B1F2A', name: 'L₂' };
+let P = { x: 3, y: -4 }, isDragging = false, recordedPoints = [], autoAnimFrame = null, showAnswer = false;
+
+function toMath(px, py) { return { x: (px - OX) / UNIT, y: (OY - py) / UNIT }; }
+function toCanvas(mx, my) { return { x: OX + mx * UNIT, y: OY - my * UNIT }; }
+function getDistance(P, L) { return Math.abs(L.a * P.x + L.b * P.y + L.c) / Math.sqrt(L.a * L.a + L.b * L.b); }
+function getProjectedPoint(P, L) {
+  const den = L.a * L.a + L.b * L.b; const t = -(L.a * P.x + L.b * P.y + L.c) / den;
+  return { x: P.x + L.a * t, y: P.y + L.b * t };
+}
+function getLineEndpoints(L, minX, maxX) {
+  if (Math.abs(L.b) > 0.0001) return [{ x: minX, y: (-L.a * minX - L.c) / L.b }, { x: maxX, y: (-L.a * maxX - L.c) / L.b }];
+  else return [{ x: -L.c / L.a, y: -20 }, { x: -L.c / L.a, y: 20 }];
+}
+
+function drawGrid(ctx) {
+  ctx.clearRect(0, 0, cw, ch); ctx.lineWidth = 1;
+  for (let i = -20; i <= 20; i++) {
+    ctx.strokeStyle = i === 0 ? '#C9D4E3' : '#EDEFFA'; ctx.lineWidth = i === 0 ? 2 : 1;
+    let x = OX + i * UNIT, y = OY - i * UNIT;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, ch); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(cw, y); ctx.stroke();
+  }
+}
+function drawLine(ctx, L, color, dash = [], width = 2) {
+  const [p1, p2] = getLineEndpoints(L, -20, 20); const cp1 = toCanvas(p1.x, p1.y), cp2 = toCanvas(p2.x, p2.y);
+  ctx.save(); ctx.beginPath(); ctx.moveTo(cp1.x, cp1.y); ctx.lineTo(cp2.x, cp2.y);
+  ctx.strokeStyle = color; ctx.lineWidth = width; ctx.setLineDash(dash); ctx.stroke(); ctx.restore();
+  if(L.name) { let np = toCanvas(12, (-L.a * 12 - L.c) / L.b); ctx.fillStyle = color; ctx.font = "bold 16px sans-serif"; ctx.fillText(L.name, np.x + 10, np.y - 10); }
+}
+
+function renderStage0() {
+  drawGrid(ctx1);
+  for (let p of recordedPoints) { let cp = toCanvas(p.x, p.y); ctx1.fillStyle = '#4A5CC5'; ctx1.beginPath(); ctx1.arc(cp.x, cp.y, 3.5, 0, Math.PI * 2); ctx1.fill(); }
+  drawLine(ctx1, L1, '#1B1F2A'); drawLine(ctx1, L2, '#1B1F2A');
+
+  const d1 = getDistance(P, L1), d2 = getDistance(P, L2);
+  const isMatch = Math.abs(d1 - d2) < 0.1;
+  const pColor = isMatch ? '#10B981' : '#C2410C';
+  const cp = toCanvas(P.x, P.y), h1 = getProjectedPoint(P, L1), h2 = getProjectedPoint(P, L2);
+  const ch1 = toCanvas(h1.x, h1.y), ch2 = toCanvas(h2.x, h2.y);
+
+  ctx1.save(); ctx1.beginPath(); ctx1.moveTo(cp.x, cp.y); ctx1.lineTo(ch1.x, ch1.y);
+  ctx1.strokeStyle = pColor; ctx1.lineWidth = 2; ctx1.setLineDash([5, 5]); ctx1.stroke();
+  ctx1.beginPath(); ctx1.moveTo(cp.x, cp.y); ctx1.lineTo(ch2.x, ch2.y); ctx1.stroke(); ctx1.restore();
+
+  ctx1.fillStyle = pColor; ctx1.beginPath(); ctx1.arc(cp.x, cp.y, 7, 0, Math.PI * 2); ctx1.fill();
+  
+  document.getElementById('val-px').textContent = P.x.toFixed(1); document.getElementById('val-py').textContent = P.y.toFixed(1);
+  document.getElementById('val-d1').textContent = d1.toFixed(2); document.getElementById('val-d2').textContent = d2.toFixed(2);
+  document.getElementById('cell-d1').classList.toggle('match', isMatch); document.getElementById('cell-d2').classList.toggle('match', isMatch);
+  document.getElementById('btn-record').disabled = !isMatch;
+}
+
+function handleMove(e) {
+  if (!isDragging) return;
+  const rect = canvas1.getBoundingClientRect();
+  const cx = ((e.touches ? e.touches[0].clientX : e.clientX) - rect.left) * (canvas1.width / rect.width);
+  const cy = ((e.touches ? e.touches[0].clientY : e.clientY) - rect.top) * (canvas1.height / rect.height);
+  P = toMath(cx, cy); renderStage0();
+}
+
+canvas1.addEventListener('mousedown', e => { isDragging = true; handleMove(e); });
+window.addEventListener('mouseup', () => isDragging = false);
+canvas1.addEventListener('mousemove', handleMove);
+
+// 모바일 터치 이벤트 추가 (스크롤 방지 포함)
+canvas1.addEventListener('touchstart', e => { 
+  e.preventDefault(); 
+  isDragging = true; 
+  handleMove(e); 
+}, { passive: false });
+window.addEventListener('touchend', () => { 
+  isDragging = false; 
+});
+canvas1.addEventListener('touchmove', e => { 
+  if(isDragging) {
+    e.preventDefault(); 
+    handleMove(e); 
+  }
+}, { passive: false });
+
+document.getElementById('btn-record').addEventListener('click', () => { recordedPoints.push({x: P.x, y: P.y}); renderStage0(); });
+document.getElementById('btn-clear').addEventListener('click', () => { recordedPoints = []; if(autoAnimFrame) cancelAnimationFrame(autoAnimFrame); renderStage0(); renderStage1(); });
+document.getElementById('btn-auto').addEventListener('click', () => {
+  if(autoAnimFrame) cancelAnimationFrame(autoAnimFrame);
+  recordedPoints = []; let t = -15;
+  function step() {
+    if (t > 15) return;
+    recordedPoints.push({x: 3*t, y: t}); recordedPoints.push({x: t, y: -3*t});
+    P = {x: 3*t, y: t}; t += 0.5; renderStage0();
+    autoAnimFrame = requestAnimationFrame(step);
+  }
+  step();
+});
+
+function renderStage1() {
+  drawGrid(ctx2);
+  for (let p of recordedPoints) { let cp = toCanvas(p.x, p.y); ctx2.fillStyle = '#4A5CC5'; ctx2.beginPath(); ctx2.arc(cp.x, cp.y, 3.5, 0, Math.PI * 2); ctx2.fill(); }
+  drawLine(ctx2, L1, '#8A8F9A', [], 1.5); drawLine(ctx2, L2, '#8A8F9A', [], 1.5);
+  if(showAnswer) {
+    drawLine(ctx2, { a: 1, b: -3, c: 0 }, '#4A5CC5', [5, 5], 3); drawLine(ctx2, { a: 3, b: 1, c: 0 }, '#4A5CC5', [5, 5], 3);
+  }
+}
+
+document.getElementById('btn-reveal').addEventListener('click', () => { showAnswer = true; renderStage1(); });
+
+function go(i){
+  const stages = document.querySelectorAll('.stage'); for(let k=0; k<stages.length; k++) stages[k].classList.toggle('on', +stages[k].dataset.stage === i);
+  const btns = document.querySelectorAll('#nav button'); for(let j=0; j<btns.length; j++) btns[j].setAttribute('aria-selected', +btns[j].dataset.s === i);
+  window.scrollTo({top:0, behavior:'smooth'});
+  if(i === 0) renderStage0(); if(i === 1) renderStage1();
+}
+
+document.getElementById('nav').addEventListener('click', ev => { const b = ev.target.closest('button'); if(b && !b.disabled) go(+b.dataset.s); });
+renderStage0();
+</script>
+</body>
+</html>
