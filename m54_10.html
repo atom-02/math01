@@ -1,0 +1,962 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>아폴로니우스의 원 - 점 P의 자취 및 둘레 시뮬레이터</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css');
+        body {
+            font-family: 'Pretendard', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        canvas {
+            touch-action: none;
+            display: block;
+        }
+        input[type="number"], input[type="text"] {
+            font-size: 16px !important;
+        }
+        .math-symbol {
+            font-family: 'Times New Roman', Times, serif;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen pb-12 flex flex-col">
+
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center gap-2.5">
+                <div class="bg-indigo-600 text-white p-2 rounded-xl shadow-md shadow-indigo-200 flex items-center justify-center">
+                    <i class="fa-solid fa-circle-notch text-lg"></i>
+                </div>
+                <div>
+                    <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">아폴로니우스의 원 탐구 시뮬레이터</h1>
+                    <p class="text-[11px] text-slate-500 hidden sm:block">거리의 비가 일정(m : n)한 점 P의 자취 및 도형의 둘레 탐구</p>
+                </div>
+            </div>
+            <button id="resetToDefaultBtn" class="px-3 py-1.5 text-xs font-semibold bg-slate-100 active:bg-slate-200 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors flex items-center gap-1">
+                <i class="fa-solid fa-rotate-left"></i> <span class="hidden sm:inline">문제 조건 초기화</span>
+            </button>
+        </div>
+
+        <!-- Mobile Navigation Tabs -->
+        <div class="lg:hidden flex border-t border-slate-200 bg-slate-50 text-xs font-bold text-slate-600">
+            <button id="mobTabSim" class="flex-1 py-2.5 text-center text-indigo-600 border-b-2 border-indigo-600 bg-white transition-all flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-compass"></i> 시뮬레이터
+            </button>
+            <button id="mobTabInput" class="flex-1 py-2.5 text-center border-b-2 border-transparent transition-all flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-sliders"></i> 조건 설정
+            </button>
+            <button id="mobTabMath" class="flex-1 py-2.5 text-center border-b-2 border-transparent transition-all flex items-center justify-center gap-1.5">
+                <i class="fa-solid fa-calculator"></i> 풀이 과정
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-3 sm:px-4 mt-3 sm:mt-6 grid grid-cols-1 lg:grid-cols-12 gap-5 flex-1 w-full">
+
+        <!-- Column 1: Simulator View -->
+        <section id="panelSim" class="lg:col-span-7 flex flex-col gap-4 w-full">
+            
+            <!-- Canvas Container -->
+            <div id="canvasContainer" class="bg-white p-3 sm:p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col items-center relative overflow-hidden w-full min-h-[340px]">
+                
+                <!-- Floating Zoom & Fit Controls -->
+                <div class="absolute top-5 right-5 flex gap-1 bg-white/90 backdrop-blur-md p-1 rounded-xl shadow-md border border-slate-200 text-xs font-bold z-10">
+                    <button id="zoomInBtn" class="w-8 h-8 flex items-center justify-center rounded-lg active:bg-slate-100 text-slate-700" title="확대">
+                        <i class="fa-solid fa-plus text-sm"></i>
+                    </button>
+                    <button id="zoomOutBtn" class="w-8 h-8 flex items-center justify-center rounded-lg active:bg-slate-100 text-slate-700" title="축소">
+                        <i class="fa-solid fa-minus text-sm"></i>
+                    </button>
+                    <button id="recenterBtn" class="w-8 h-8 flex items-center justify-center rounded-lg active:bg-slate-100 text-slate-700" title="화면 맞춤">
+                        <i class="fa-solid fa-expand text-sm"></i>
+                    </button>
+                </div>
+
+                <!-- Canvas Component -->
+                <div class="w-full h-full relative flex justify-center items-center">
+                    <canvas id="locusCanvas" class="w-full bg-slate-50/80 rounded-xl cursor-crosshair border border-slate-200"></canvas>
+                </div>
+
+                <!-- Touch & Drag Guide -->
+                <div class="w-full flex justify-between items-center px-1 mt-2.5 text-[11px] text-slate-500">
+                    <span class="flex items-center gap-1 font-medium text-indigo-600">
+                        <i class="fa-solid fa-hand-pointer animate-bounce"></i> 점 P를 손가락이나 마우스로 직접 드래그해보세요!
+                    </span>
+                    <span class="text-slate-400 hidden sm:inline">드래그/터치로 위치 이동</span>
+                </div>
+            </div>
+
+            <!-- Simulation Controls -->
+            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                <div class="flex gap-2">
+                    <button id="togglePlayBtn" class="flex-1 py-3 bg-indigo-600 active:bg-indigo-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-2 shadow-sm shadow-indigo-200">
+                        <i class="fa-solid fa-play" id="playIcon"></i> <span id="playText">자동 회전 시작</span>
+                    </button>
+                    <button id="clearTraceBtn" class="px-4 py-3 bg-slate-100 active:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors flex items-center gap-1.5">
+                        <i class="fa-solid fa-eraser"></i> 자취 지우기
+                    </button>
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center text-xs font-semibold text-slate-600 mb-1.5">
+                        <span>점 <span class="math-symbol">P</span> 위치 (각도 조절)</span>
+                        <span id="angleValueText" class="font-mono text-indigo-600 font-bold bg-indigo-50 px-2 py-0.5 rounded text-xs">0°</span>
+                    </div>
+                    <input type="range" id="angleSlider" min="0" max="360" value="0" class="w-full accent-indigo-600 cursor-pointer h-3 bg-slate-200 rounded-lg">
+                </div>
+
+                <div class="pt-2 border-t border-slate-100 flex flex-wrap gap-x-4 gap-y-2 text-xs font-semibold text-slate-700">
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                        <input type="checkbox" id="showLocusGuide" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+                        <span>자취의 원 가이드 표시</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                        <input type="checkbox" id="showDistanceLines" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+                        <span>선분 AP, BP 거리선 표시</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                        <input type="checkbox" id="showDivisionPoints" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+                        <span>내분점 I, 외분점 E 및 지름 IE 표시</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer select-none">
+                        <input type="checkbox" id="showRightAngle" checked class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
+                        <span>지름에 대한 원주각 (∠IPE = 90°) 표시</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Coordinates Real-time HUD -->
+            <div class="bg-slate-900 text-white p-3.5 rounded-2xl shadow-sm space-y-1.5 text-xs font-mono">
+                <div class="text-slate-400 font-sans text-xs font-bold flex justify-between items-center">
+                    <span>실시간 수치 및 거리 비 확인</span>
+                    <span class="flex items-center gap-1 text-[11px] text-emerald-400">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span> 라이브
+                    </span>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-slate-800 text-[12px]">
+                    <div class="bg-slate-800/60 p-1.5 rounded-lg border border-slate-700/50">
+                        <span class="text-red-400 font-bold block text-[10px] font-sans">점 A</span> 
+                        <span id="infoA" class="text-slate-200">(-2.00, 3.00)</span>
+                    </div>
+                    <div class="bg-slate-800/60 p-1.5 rounded-lg border border-slate-700/50">
+                        <span class="text-blue-400 font-bold block text-[10px] font-sans">점 B</span> 
+                        <span id="infoB" class="text-slate-200">(1.00, 0.00)</span>
+                    </div>
+                    <div class="bg-slate-800/60 p-1.5 rounded-lg border border-slate-700/50">
+                        <span class="text-emerald-400 font-bold block text-[10px] font-sans">점 P (자취)</span> 
+                        <span id="infoP" class="text-slate-200">(0.00, 0.00)</span>
+                    </div>
+                    <div class="bg-slate-800/60 p-1.5 rounded-lg border border-slate-700/50">
+                        <span class="text-amber-400 font-bold block text-[10px] font-sans">거리의 비 AP : BP</span> 
+                        <span id="infoRatio" class="text-slate-200">1.00 : 2.00</span>
+                    </div>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- Column 2: Input Parameters Panel -->
+        <section id="panelInput" class="hidden lg:flex lg:col-span-5 flex-col gap-5">
+            
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <h2 class="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-sliders text-indigo-600"></i> 문제 조건 변경하기
+                </h2>
+
+                <!-- Point A Input -->
+                <div class="mb-3 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                    <label class="block text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span> 점 <span class="math-symbol">A</span> 의 좌표 (x, y)
+                    </label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="flex items-center gap-1 bg-white px-2.5 py-2 rounded-lg border border-slate-300">
+                            <span class="text-xs font-semibold text-slate-400">x:</span>
+                            <input type="number" id="inputAx" value="-2" step="any" class="w-full text-sm font-semibold outline-none bg-transparent">
+                        </div>
+                        <div class="flex items-center gap-1 bg-white px-2.5 py-2 rounded-lg border border-slate-300">
+                            <span class="text-xs font-semibold text-slate-400">y:</span>
+                            <input type="number" id="inputAy" value="3" step="any" class="w-full text-sm font-semibold outline-none bg-transparent">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Point B Input -->
+                <div class="mb-3 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                    <label class="block text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+                        <span class="w-2.5 h-2.5 rounded-full bg-blue-500 inline-block"></span> 점 <span class="math-symbol">B</span> 의 좌표 (x, y)
+                    </label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="flex items-center gap-1 bg-white px-2.5 py-2 rounded-lg border border-slate-300">
+                            <span class="text-xs font-semibold text-slate-400">x:</span>
+                            <input type="number" id="inputBx" value="1" step="any" class="w-full text-sm font-semibold outline-none bg-transparent">
+                        </div>
+                        <div class="flex items-center gap-1 bg-white px-2.5 py-2 rounded-lg border border-slate-300">
+                            <span class="text-xs font-semibold text-slate-400">y:</span>
+                            <input type="number" id="inputBy" value="0" step="any" class="w-full text-sm font-semibold outline-none bg-transparent">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Distance Ratio Input -->
+                <div class="mb-4 bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                    <label class="block text-xs font-bold text-slate-700 mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-arrows-left-right text-amber-500"></i> 거리의 비 AP : BP = m : n
+                    </label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div class="flex items-center gap-1 bg-white px-2.5 py-2 rounded-lg border border-slate-300">
+                            <span class="text-xs font-semibold text-slate-400">m:</span>
+                            <input type="number" id="inputRatioM" value="1" min="0.1" step="any" class="w-full text-sm font-semibold outline-none bg-transparent">
+                        </div>
+                        <div class="flex items-center gap-1 bg-white px-2.5 py-2 rounded-lg border border-slate-300">
+                            <span class="text-xs font-semibold text-slate-400">n:</span>
+                            <input type="number" id="inputRatioN" value="2" min="0.1" step="any" class="w-full text-sm font-semibold outline-none bg-transparent">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Alert Box -->
+                <div id="errorAlert" class="hidden p-3 mb-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs flex items-center gap-2">
+                    <i class="fa-solid fa-circle-exclamation text-sm"></i>
+                    <span id="errorMessage">m과 n의 값이 같으면 원이 아닌 수직이등분선이 됩니다.</span>
+                </div>
+
+                <button id="applyBtn" class="w-full py-3 bg-indigo-600 active:bg-indigo-700 text-white font-bold rounded-xl text-xs sm:text-sm transition-all shadow-sm shadow-indigo-200 flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-check"></i> 조건 적용 및 자취 계산
+                </button>
+            </div>
+
+            <!-- Key Insight Box -->
+            <div class="bg-indigo-50 border border-indigo-200 p-4 rounded-2xl text-xs text-indigo-900 space-y-2">
+                <div class="font-bold text-sm text-indigo-950 flex items-center gap-1.5">
+                    <i class="fa-solid fa-lightbulb text-amber-500"></i> 아폴로니우스의 원 정리 (지름의 성질)
+                </div>
+                <p class="leading-relaxed">
+                    두 점 <span class="math-symbol font-bold">A, B</span>로부터의 거리의 비가 <span class="math-symbol font-bold">m : n</span> (<span class="math-symbol">m ≠ n</span>)인 점 <span class="math-symbol font-bold">P</span>의 자취는:
+                </p>
+                <ul class="list-disc pl-4 space-y-1 bg-white/70 p-2.5 rounded-xl border border-indigo-100">
+                    <li>선분 <span class="math-symbol font-bold">AB</span>를 <span class="math-symbol">m : n</span>으로 <b>내분하는 점 I</b> = <span class="font-mono text-amber-700">(AI : IB = m : n)</span></li>
+                    <li>선분 <span class="math-symbol font-bold">AB</span>를 <span class="math-symbol">m : n</span>으로 <b>외분하는 점 E</b> = <span class="font-mono text-purple-700">(AE : EB = m : n)</span></li>
+                    <li class="text-indigo-950 font-bold">👉 두 점 <span class="text-amber-600">I</span>와 <span class="text-purple-600">E</span>를 <u>지름의 양 끝점</u>으로 하는 원이 됩니다!</li>
+                    <li class="text-slate-600 text-[11px]">지름 <span class="math-symbol">IE</span>에 대한 원주각이므로 점 <span class="math-symbol">P</span>가 원 위 어디에 있든 <b>∠IPE = 90°</b>를 만족합니다.</li>
+                </ul>
+            </div>
+
+        </section>
+
+        <!-- Column 3: Step-by-step Solution Panel -->
+        <section id="panelMath" class="hidden lg:block lg:col-span-12">
+            <div class="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <h2 class="text-base font-bold text-slate-900 mb-3 flex items-center gap-2">
+                    <i class="fa-solid fa-square-root-variable text-emerald-600"></i> 단계별 자취의 방정식 & 도형 둘레 풀이
+                </h2>
+
+                <div id="solutionMathBox" class="bg-slate-50 p-4 sm:p-5 rounded-xl border border-slate-200 text-xs sm:text-sm leading-relaxed space-y-4 font-sans text-slate-700 overflow-x-auto">
+                    <!-- Pure HTML Math Solution Content Injected dynamically -->
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <script>
+        const canvas = document.getElementById('locusCanvas');
+        const ctx = canvas.getContext('2d');
+        const container = document.getElementById('canvasContainer');
+
+        // Main State
+        const state = {
+            A: { x: -2, y: 3 },
+            B: { x: 1, y: 0 },
+            m: 1,
+            n: 2,
+            circle: {
+                x: -3,
+                y: 4,
+                r: Math.SQRT2 * 2, // 2*sqrt(2) approx 2.8284
+            },
+            I: { x: -1, y: 2 },
+            E: { x: -5, y: 6 },
+            angle: 0,
+            isPlaying: false,
+            showLocusGuide: true,
+            showDistanceLines: true,
+            showDivisionPoints: true,
+            showRightAngle: true,
+            tracePoints: [],
+            // Viewport Transfromation State
+            scale: 36,
+            offsetX: 0,
+            offsetY: 0,
+            isDraggingP: false
+        };
+
+        let canvasLogicalWidth = 600;
+        let canvasLogicalHeight = 420;
+
+        function updateCanvasSize() {
+            if (!container) return;
+            const rect = container.getBoundingClientRect();
+            const width = rect.width > 0 ? rect.width : (window.innerWidth < 640 ? window.innerWidth - 32 : 600);
+            const height = Math.min(Math.max(width * 0.75, 320), 480);
+
+            canvasLogicalWidth = width;
+            canvasLogicalHeight = height;
+
+            const dpr = window.devicePixelRatio || 1;
+            canvas.style.width = canvasLogicalWidth + 'px';
+            canvas.style.height = canvasLogicalHeight + 'px';
+
+            canvas.width = Math.floor(canvasLogicalWidth * dpr);
+            canvas.height = Math.floor(canvasLogicalHeight * dpr);
+
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            render();
+        }
+
+        // Mathematical calculation of Apollonius Circle
+        function calculateLocusCircle() {
+            const errorAlert = document.getElementById('errorAlert');
+            const errorMessage = document.getElementById('errorMessage');
+            errorAlert.classList.add('hidden');
+
+            const Ax = parseFloat(document.getElementById('inputAx').value) || 0;
+            const Ay = parseFloat(document.getElementById('inputAy').value) || 0;
+            const Bx = parseFloat(document.getElementById('inputBx').value) || 0;
+            const By = parseFloat(document.getElementById('inputBy').value) || 0;
+            const m = parseFloat(document.getElementById('inputRatioM').value) || 1;
+            const n = parseFloat(document.getElementById('inputRatioN').value) || 2;
+
+            if (Math.abs(m - n) < 0.0001) {
+                errorMessage.textContent = 'm과 n의 비율이 동일하면 원이 아닌 수직이등분선(직선)이 생성됩니다. 다른 비율을 입력해주세요.';
+                errorAlert.classList.remove('hidden');
+                return false;
+            }
+
+            state.A = { x: Ax, y: Ay };
+            state.B = { x: Bx, y: By };
+            state.m = m;
+            state.n = n;
+
+            // Internal Division Point I
+            const Ix = (m * Bx + n * Ax) / (m + n);
+            const Iy = (m * By + n * Ay) / (m + n);
+            state.I = { x: Ix, y: Iy };
+
+            // External Division Point E
+            const Ex = (m * Bx - n * Ax) / (m - n);
+            const Ey = (m * By - n * Ay) / (m - n);
+            state.E = { x: Ex, y: Ey };
+
+            // Center is the midpoint of IE
+            state.circle.x = (Ix + Ex) / 2;
+            state.circle.y = (Iy + Ey) / 2;
+
+            // Radius is half of length IE
+            state.circle.r = Math.hypot(Ex - Ix, Ey - Iy) / 2;
+
+            return true;
+        }
+
+        // Coordinate conversion helper functions
+        function toScreenX(mathX) {
+            return (canvasLogicalWidth / 2) + state.offsetX + mathX * state.scale;
+        }
+
+        function toScreenY(mathY) {
+            return (canvasLogicalHeight / 2) + state.offsetY - mathY * state.scale;
+        }
+
+        function toMathX(screenX) {
+            return (screenX - (canvasLogicalWidth / 2) - state.offsetX) / state.scale;
+        }
+
+        function toMathY(screenY) {
+            return ((canvasLogicalHeight / 2) + state.offsetY - screenY) / state.scale;
+        }
+
+        function autoFitViewport() {
+            const minX = Math.min(state.A.x, state.B.x, state.circle.x - state.circle.r, state.I.x, state.E.x) - 1.5;
+            const maxX = Math.max(state.A.x, state.B.x, state.circle.x + state.circle.r, state.I.x, state.E.x) + 1.5;
+            const minY = Math.min(state.A.y, state.B.y, state.circle.y - state.circle.r, state.I.y, state.E.y) - 1.5;
+            const maxY = Math.max(state.A.y, state.B.y, state.circle.y + state.circle.r, state.I.y, state.E.y) + 1.5;
+
+            const mathWidth = Math.max(maxX - minX, 1);
+            const mathHeight = Math.max(maxY - minY, 1);
+
+            const scaleX = (canvasLogicalWidth * 0.8) / mathWidth;
+            const scaleY = (canvasLogicalHeight * 0.8) / mathHeight;
+            state.scale = Math.max(Math.min(scaleX, scaleY, 55), 14);
+
+            const midMathX = (minX + maxX) / 2;
+            const midMathY = (minY + maxY) / 2;
+
+            state.offsetX = -midMathX * state.scale;
+            state.offsetY = midMathY * state.scale;
+        }
+
+        function drawGrid() {
+            ctx.clearRect(0, 0, canvasLogicalWidth, canvasLogicalHeight);
+
+            const startX = Math.floor(toMathX(0));
+            const endX = Math.ceil(toMathX(canvasLogicalWidth));
+            const startY = Math.floor(toMathY(canvasLogicalHeight));
+            const endY = Math.ceil(toMathY(0));
+
+            ctx.strokeStyle = '#f1f5f9';
+            ctx.lineWidth = 1;
+
+            for (let x = startX; x <= endX; x++) {
+                ctx.beginPath();
+                ctx.moveTo(toScreenX(x), 0);
+                ctx.lineTo(toScreenX(x), canvasLogicalHeight);
+                ctx.stroke();
+            }
+            for (let y = startY; y <= endY; y++) {
+                ctx.beginPath();
+                ctx.moveTo(0, toScreenY(y));
+                ctx.lineTo(canvasLogicalWidth, toScreenY(y));
+                ctx.stroke();
+            }
+
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1.5;
+
+            // X-Axis
+            ctx.beginPath();
+            ctx.moveTo(0, toScreenY(0));
+            ctx.lineTo(canvasLogicalWidth, toScreenY(0));
+            ctx.stroke();
+
+            // Y-Axis
+            ctx.beginPath();
+            ctx.moveTo(toScreenX(0), 0);
+            ctx.lineTo(toScreenX(0), canvasLogicalHeight);
+            ctx.stroke();
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '11px sans-serif';
+            ctx.fillText('O', toScreenX(0) - 12, toScreenY(0) + 14);
+        }
+
+        function drawPoint(x, y, color, label, radius = 6) {
+            const sx = toScreenX(x);
+            const sy = toScreenY(y);
+
+            ctx.beginPath();
+            ctx.arc(sx, sy, radius, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            if (label) {
+                ctx.fillStyle = '#0f172a';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.fillText(label, sx + 8, sy - 8);
+            }
+        }
+
+        function render() {
+            drawGrid();
+
+            // 1. Draw Target Circle Guide
+            if (state.showLocusGuide) {
+                ctx.beginPath();
+                ctx.arc(toScreenX(state.circle.x), toScreenY(state.circle.y), state.circle.r * state.scale, 0, Math.PI * 2);
+                ctx.strokeStyle = '#6366f1';
+                ctx.lineWidth = 2;
+                ctx.setLineDash([5, 5]);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Current P Position
+            const P = {
+                x: state.circle.x + state.circle.r * Math.cos(state.angle),
+                y: state.circle.y + state.circle.r * Math.sin(state.angle)
+            };
+
+            // Store Trace
+            if (state.tracePoints.length === 0 || 
+                Math.hypot(state.tracePoints[state.tracePoints.length - 1].x - P.x, state.tracePoints[state.tracePoints.length - 1].y - P.y) > 0.02) {
+                state.tracePoints.push(P);
+            }
+
+            // 2. Render Trace Points
+            ctx.fillStyle = 'rgba(16, 185, 129, 0.5)';
+            for (let pt of state.tracePoints) {
+                ctx.beginPath();
+                ctx.arc(toScreenX(pt.x), toScreenY(pt.y), 3.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            // 3. Distance Lines AP & BP
+            const distAP = Math.hypot(P.x - state.A.x, P.y - state.A.y);
+            const distBP = Math.hypot(P.x - state.B.x, P.y - state.B.y);
+
+            if (state.showDistanceLines) {
+                // Line AP
+                ctx.beginPath();
+                ctx.moveTo(toScreenX(state.A.x), toScreenY(state.A.y));
+                ctx.lineTo(toScreenX(P.x), toScreenY(P.y));
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 1.8;
+                ctx.stroke();
+
+                // Line BP
+                ctx.beginPath();
+                ctx.moveTo(toScreenX(state.B.x), toScreenY(state.B.y));
+                ctx.lineTo(toScreenX(P.x), toScreenY(P.y));
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 1.8;
+                ctx.stroke();
+            }
+
+            // 4. Line Segment AB
+            ctx.beginPath();
+            ctx.moveTo(toScreenX(state.A.x), toScreenY(state.A.y));
+            ctx.lineTo(toScreenX(state.B.x), toScreenY(state.B.y));
+            ctx.strokeStyle = '#cbd5e1';
+            ctx.lineWidth = 1.2;
+            ctx.setLineDash([3, 3]);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 5. Division Points I & E and Diameter Line
+            if (state.showDivisionPoints) {
+                // Diameter line segment IE
+                ctx.beginPath();
+                ctx.moveTo(toScreenX(state.I.x), toScreenY(state.I.y));
+                ctx.lineTo(toScreenX(state.E.x), toScreenY(state.E.y));
+                ctx.strokeStyle = '#8b5cf6';
+                ctx.lineWidth = 2.5;
+                ctx.stroke();
+
+                // Draw Lines PI and PE showing angle IPE = 90 deg
+                if (state.showRightAngle) {
+                    ctx.beginPath();
+                    ctx.moveTo(toScreenX(state.I.x), toScreenY(state.I.y));
+                    ctx.lineTo(toScreenX(P.x), toScreenY(P.y));
+                    ctx.lineTo(toScreenX(state.E.x), toScreenY(state.E.y));
+                    ctx.strokeStyle = '#a855f7';
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([2, 2]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    // Right Angle Marker at P
+                    const v1 = { x: state.I.x - P.x, y: state.I.y - P.y };
+                    const v2 = { x: state.E.x - P.x, y: state.E.y - P.y };
+                    const len1 = Math.hypot(v1.x, v1.y);
+                    const len2 = Math.hypot(v2.x, v2.y);
+                    if (len1 > 0.1 && len2 > 0.1) {
+                        const u1 = { x: v1.x / len1, y: v1.y / len1 };
+                        const u2 = { x: v2.x / len2, y: v2.y / len2 };
+                        const size = 12 / state.scale;
+
+                        const p1 = { x: P.x + u1.x * size, y: P.y + u1.y * size };
+                        const p2 = { x: P.x + (u1.x + u2.x) * size, y: P.y + (u1.y + u2.y) * size };
+                        const p3 = { x: P.x + u2.x * size, y: P.y + u2.y * size };
+
+                        ctx.beginPath();
+                        ctx.moveTo(toScreenX(p1.x), toScreenY(p1.y));
+                        ctx.lineTo(toScreenX(p2.x), toScreenY(p2.y));
+                        ctx.lineTo(toScreenX(p3.x), toScreenY(p3.y));
+                        ctx.strokeStyle = '#a855f7';
+                        ctx.lineWidth = 1.8;
+                        ctx.stroke();
+                    }
+                }
+
+                drawPoint(state.I.x, state.I.y, '#f59e0b', `내분점 I (${state.I.x.toFixed(1)}, ${state.I.y.toFixed(1)})`, 5.5);
+                drawPoint(state.E.x, state.E.y, '#8b5cf6', `외분점 E (${state.E.x.toFixed(1)}, ${state.E.y.toFixed(1)})`, 5.5);
+            }
+
+            // 6. Primary Points
+            drawPoint(state.A.x, state.A.y, '#ef4444', `A (${state.A.x.toFixed(1)}, ${state.A.y.toFixed(1)})`, 6);
+            drawPoint(state.B.x, state.B.y, '#3b82f6', `B (${state.B.x.toFixed(1)}, ${state.B.y.toFixed(1)})`, 6);
+            drawPoint(state.circle.x, state.circle.y, '#64748b', `중심 C (${state.circle.x.toFixed(1)}, ${state.circle.y.toFixed(1)})`, 4);
+            drawPoint(P.x, P.y, '#10b981', 'P', 7);
+
+            // Update Coordinates HUD
+            document.getElementById('infoA').textContent = `(${state.A.x.toFixed(2)}, ${state.A.y.toFixed(2)})`;
+            document.getElementById('infoB').textContent = `(${state.B.x.toFixed(2)}, ${state.B.y.toFixed(2)})`;
+            document.getElementById('infoP').textContent = `(${P.x.toFixed(2)}, ${P.y.toFixed(2)})`;
+            
+            const realRatioVal = distBP > 0 ? (distAP / distBP) : 0;
+            document.getElementById('infoRatio').textContent = `${(realRatioVal * state.m).toFixed(2)} : ${state.m.toFixed(2)} (${distAP.toFixed(2)} : ${distBP.toFixed(2)})`;
+        }
+
+        function updateSolutionExplanation() {
+            const mathBox = document.getElementById('solutionMathBox');
+            if (!mathBox) return;
+
+            const Ax = state.A.x;
+            const Ay = state.A.y;
+            const Bx = state.B.x;
+            const By = state.B.y;
+            const m = state.m;
+            const n = state.n;
+
+            const m2 = m * m;
+            const n2 = n * n;
+
+            const subAx = Ax >= 0 ? `- ${Ax}` : `+ ${Math.abs(Ax)}`;
+            const subAy = Ay >= 0 ? `- ${Ay}` : `+ ${Math.abs(Ay)}`;
+            const subBx = Bx >= 0 ? `- ${Bx}` : `+ ${Math.abs(Bx)}`;
+            const subBy = By >= 0 ? `- ${By}` : `+ ${Math.abs(By)}`;
+
+            const Cx = state.circle.x;
+            const Cy = state.circle.y;
+            const R = state.circle.r;
+            const R2 = R * R;
+            const circumference = 2 * Math.PI * R;
+
+            const subCx = Cx >= 0 ? `- ${Cx.toFixed(2)}` : `+ ${Math.abs(Cx).toFixed(2)}`;
+            const subCy = Cy >= 0 ? `- ${Cy.toFixed(2)}` : `+ ${Math.abs(Cy).toFixed(2)}`;
+
+            const distIE = Math.hypot(state.E.x - state.I.x, state.E.y - state.I.y);
+
+            mathBox.innerHTML = `
+                <div class="space-y-4 text-slate-800">
+                    <div>
+                        <p class="font-bold border-b border-slate-200 pb-1.5 text-indigo-900 flex items-center gap-1.5">
+                            <span class="bg-indigo-600 text-white w-5 h-5 rounded-full inline-flex items-center justify-center text-xs">1</span>
+                            주어진 조건 및 수식 세우기
+                        </p>
+                        <div class="mt-2 text-slate-700 space-y-1">
+                            <p>• 두 점: <span class="font-semibold text-red-600">A(${Ax}, ${Ay})</span>, <span class="font-semibold text-blue-600">B(${Bx}, ${By})</span></p>
+                            <p>• 점 <span class="math-symbol font-bold text-emerald-600">P(x, y)</span>는 거리의 비가 <span class="font-bold text-amber-600">${m} : ${n}</span>을 만족하므로:</p>
+                            <div class="bg-white p-2.5 my-1.5 rounded-lg border border-slate-200 text-center font-mono text-sm">
+                                AP : BP = ${m} : ${n} &nbsp;&implies;&nbsp; ${n} × AP = ${m} × BP
+                            </div>
+                            <p>• 양변을 제곱하면:</p>
+                            <div class="bg-white p-2.5 my-1.5 rounded-lg border border-slate-200 text-center font-mono text-sm">
+                                ${n2} × AP<sup>2</sup> = ${m2} × BP<sup>2</sup>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <p class="font-bold border-b border-slate-200 pb-1.5 text-indigo-900 flex items-center gap-1.5">
+                            <span class="bg-indigo-600 text-white w-5 h-5 rounded-full inline-flex items-center justify-center text-xs">2</span>
+                            좌표 대입 및 방정식 전개
+                        </p>
+                        <div class="mt-2 text-slate-700 space-y-1">
+                            <p>두 점 사이의 거리 공식을 대입하여 전개합니다:</p>
+                            <div class="bg-white p-3 my-1.5 rounded-lg border border-slate-200 text-center font-mono text-xs sm:text-sm overflow-x-auto">
+                                ${n2} [ (x ${subAx})<sup>2</sup> + (y ${subAy})<sup>2</sup> ] = ${m2} [ (x ${subBx})<sup>2</sup> + (y ${subBy})<sup>2</sup> ]
+                            </div>
+                            <p>동류항을 정리하고 <span class="math-symbol">x<sup>2</sup>, y<sup>2</sup></span>의 계수로 나누어 완전제곱식으로 고치면:</p>
+                            <div class="bg-white p-3 my-1.5 rounded-lg border border-slate-200 text-center font-mono text-sm text-indigo-700 font-bold">
+                                (x ${subCx})<sup>2</sup> + (y ${subCy})<sup>2</sup> = ${R2.toFixed(2)}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-purple-50 border border-purple-200 p-4 rounded-xl space-y-2">
+                        <p class="font-bold border-b border-purple-200 pb-1.5 text-purple-950 flex items-center gap-1.5 text-sm">
+                            <span class="bg-purple-600 text-white w-5 h-5 rounded-full inline-flex items-center justify-center text-xs">3</span>
+                            핵심 성질: 내분점 I와 외분점 E가 지름의 양 끝점
+                        </p>
+                        <div class="mt-2 text-purple-900 space-y-2 text-xs sm:text-sm">
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <div class="bg-white p-2.5 rounded-lg border border-purple-200">
+                                    <span class="font-bold text-amber-600 block">① 내분점 I (m : n = ${m} : ${n})</span>
+                                    <span class="font-mono text-slate-700">I = (${state.I.x.toFixed(2)}, ${state.I.y.toFixed(2)})</span>
+                                </div>
+                                <div class="bg-white p-2.5 rounded-lg border border-purple-200">
+                                    <span class="font-bold text-purple-600 block">② 외분점 E (m : n = ${m} : ${n})</span>
+                                    <span class="font-mono text-slate-700">E = (${state.E.x.toFixed(2)}, ${state.E.y.toFixed(2)})</span>
+                                </div>
+                            </div>
+                            <p>• <b>지름의 길이 (IE):</b> <span class="font-mono font-bold">${distIE.toFixed(2)}</span> (반지름 r = IE ÷ 2 = <span class="font-mono font-bold">${R.toFixed(2)}</span>)</p>
+                            <p>• <b>원의 중심 (C):</b> 선분 IE의 중점인 <span class="font-mono font-bold">(${Cx.toFixed(2)}, ${Cy.toFixed(2)})</span>가 됩니다.</p>
+                            <p class="text-xs text-purple-800 bg-purple-100/80 p-2 rounded-lg font-medium">
+                                💡 <b>원주각의 성질:</b> 선분 IE가 원의 지름이므로, 원 위의 모든 점 P에 대하여 <b>∠IPE = 90°</b>를 만듭니다.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="bg-emerald-50 border border-emerald-200 p-4 rounded-xl space-y-2">
+                        <p class="font-bold text-emerald-950 text-sm flex items-center gap-1">
+                            <i class="fa-solid fa-circle-check text-emerald-600"></i> 최종 결과 (도형의 방정식 및 둘레의 길이)
+                        </p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 text-xs sm:text-sm">
+                            <div class="bg-white p-2.5 rounded-lg border border-emerald-200">
+                                <span class="text-slate-500 block text-xs">점 P가 나타내는 도형 (원의 방정식)</span>
+                                <span class="font-mono font-bold text-emerald-900 text-sm">
+                                    (x ${subCx})<sup>2</sup> + (y ${subCy})<sup>2</sup> = ${R2.toFixed(2)}
+                                </span>
+                            </div>
+                            <div class="bg-white p-2.5 rounded-lg border border-emerald-200">
+                                <span class="text-slate-500 block text-xs">원의 반지름 (r) 및 둘레의 길이 (2πr)</span>
+                                <span class="font-mono font-bold text-emerald-900 text-sm">
+                                    r = ${R.toFixed(2)} &nbsp;&implies;&nbsp; 둘레 = 2 × π × ${R.toFixed(2)} &approx; ${circumference.toFixed(2)}
+                                </span>
+                            </div>
+                        </div>
+                        ${(Ax === -2 && Ay === 3 && Bx === 1 && By === 0 && m === 1 && n === 2) ? `
+                            <div class="text-xs text-emerald-800 bg-emerald-100/70 p-2 rounded-lg font-medium">
+                                💡 <b>원 문제 정답:</b> 반지름 r = 2&radic;2 이므로, 도형의 둘레의 길이는 <b>4&radic;2 &pi; (&approx; ${(4 * Math.SQRT2 * Math.PI).toFixed(2)})</b>입니다.
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+
+        function animate() {
+            if (!state.isPlaying) return;
+            state.angle += 0.02;
+            if (state.angle > Math.PI * 2) state.angle -= Math.PI * 2;
+            const deg = Math.round((state.angle * 180) / Math.PI);
+            document.getElementById('angleSlider').value = deg;
+            document.getElementById('angleValueText').textContent = `${deg}°`;
+            render();
+            requestAnimationFrame(animate);
+        }
+
+        function setupEventListeners() {
+            // Mobile Tabs Switching
+            const panelSim = document.getElementById('panelSim');
+            const panelInput = document.getElementById('panelInput');
+            const panelMath = document.getElementById('panelMath');
+
+            const mobTabSim = document.getElementById('mobTabSim');
+            const mobTabInput = document.getElementById('mobTabInput');
+            const mobTabMath = document.getElementById('mobTabMath');
+
+            function resetMobileTabs() {
+                mobTabSim.className = "flex-1 py-2.5 text-center border-b-2 border-transparent transition-all flex items-center justify-center gap-1.5";
+                mobTabInput.className = "flex-1 py-2.5 text-center border-b-2 border-transparent transition-all flex items-center justify-center gap-1.5";
+                mobTabMath.className = "flex-1 py-2.5 text-center border-b-2 border-transparent transition-all flex items-center justify-center gap-1.5";
+            }
+
+            mobTabSim.addEventListener('click', () => {
+                resetMobileTabs();
+                mobTabSim.className = "flex-1 py-2.5 text-center text-indigo-600 border-b-2 border-indigo-600 bg-white transition-all flex items-center justify-center gap-1.5";
+                panelSim.classList.remove('hidden');
+                panelInput.classList.add('hidden');
+                panelMath.classList.add('hidden');
+                panelMath.classList.remove('lg:block');
+                updateCanvasSize();
+            });
+
+            mobTabInput.addEventListener('click', () => {
+                resetMobileTabs();
+                mobTabInput.className = "flex-1 py-2.5 text-center text-indigo-600 border-b-2 border-indigo-600 bg-white transition-all flex items-center justify-center gap-1.5";
+                panelSim.classList.add('hidden');
+                panelInput.classList.remove('hidden');
+                panelInput.classList.remove('hidden', 'lg:flex');
+                panelInput.classList.add('flex');
+                panelMath.classList.add('hidden');
+            });
+
+            mobTabMath.addEventListener('click', () => {
+                resetMobileTabs();
+                mobTabMath.className = "flex-1 py-2.5 text-center text-indigo-600 border-b-2 border-indigo-600 bg-white transition-all flex items-center justify-center gap-1.5";
+                panelSim.classList.add('hidden');
+                panelInput.classList.add('hidden');
+                panelMath.classList.remove('hidden');
+            });
+
+            // Action Buttons
+            document.getElementById('zoomInBtn').addEventListener('click', () => {
+                state.scale *= 1.2;
+                render();
+            });
+
+            document.getElementById('zoomOutBtn').addEventListener('click', () => {
+                state.scale /= 1.2;
+                render();
+            });
+
+            document.getElementById('recenterBtn').addEventListener('click', () => {
+                autoFitViewport();
+                render();
+            });
+
+            document.getElementById('applyBtn').addEventListener('click', () => {
+                if (calculateLocusCircle()) {
+                    state.tracePoints = [];
+                    autoFitViewport();
+                    updateSolutionExplanation();
+                    render();
+
+                    if (window.innerWidth < 1024) {
+                        mobTabSim.click();
+                    }
+                }
+            });
+
+            document.getElementById('resetToDefaultBtn').addEventListener('click', () => {
+                document.getElementById('inputAx').value = "-2";
+                document.getElementById('inputAy').value = "3";
+                document.getElementById('inputBx').value = "1";
+                document.getElementById('inputBy').value = "0";
+                document.getElementById('inputRatioM').value = "1";
+                document.getElementById('inputRatioN').value = "2";
+
+                calculateLocusCircle();
+                state.tracePoints = [];
+                autoFitViewport();
+                updateSolutionExplanation();
+                render();
+            });
+
+            const togglePlayBtn = document.getElementById('togglePlayBtn');
+            const playIcon = document.getElementById('playIcon');
+            const playText = document.getElementById('playText');
+
+            togglePlayBtn.addEventListener('click', () => {
+                state.isPlaying = !state.isPlaying;
+                if (state.isPlaying) {
+                    playIcon.className = "fa-solid fa-pause";
+                    playText.textContent = "일시 정지";
+                    animate();
+                } else {
+                    playIcon.className = "fa-solid fa-play";
+                    playText.textContent = "자동 회전 시작";
+                }
+            });
+
+            const angleSlider = document.getElementById('angleSlider');
+            const angleValueText = document.getElementById('angleValueText');
+
+            angleSlider.addEventListener('input', (e) => {
+                const deg = e.target.value;
+                state.angle = (deg * Math.PI) / 180;
+                angleValueText.textContent = `${deg}°`;
+                render();
+            });
+
+            document.getElementById('clearTraceBtn').addEventListener('click', () => {
+                state.tracePoints = [];
+                render();
+            });
+
+            document.getElementById('showLocusGuide').addEventListener('change', (e) => {
+                state.showLocusGuide = e.target.checked;
+                render();
+            });
+            document.getElementById('showDistanceLines').addEventListener('change', (e) => {
+                state.showDistanceLines = e.target.checked;
+                render();
+            });
+            document.getElementById('showDivisionPoints').addEventListener('change', (e) => {
+                state.showDivisionPoints = e.target.checked;
+                render();
+            });
+            document.getElementById('showRightAngle').addEventListener('change', (e) => {
+                state.showRightAngle = e.target.checked;
+                render();
+            });
+
+            // Canvas Drag / Touch Controls
+            function getCanvasPos(e) {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return {
+                    x: (clientX - rect.left),
+                    y: (clientY - rect.top)
+                };
+            }
+
+            function handleStart(e) {
+                const pos = getCanvasPos(e);
+                const mathX = toMathX(pos.x);
+                const mathY = toMathY(pos.y);
+
+                const P = {
+                    x: state.circle.x + state.circle.r * Math.cos(state.angle),
+                    y: state.circle.y + state.circle.r * Math.sin(state.angle)
+                };
+
+                if (Math.hypot(mathX - P.x, mathY - P.y) < (18 / state.scale)) {
+                    state.isDraggingP = true;
+                }
+            }
+
+            function handleMove(e) {
+                if (state.isDraggingP) {
+                    const pos = getCanvasPos(e);
+                    const mathX = toMathX(pos.x);
+                    const mathY = toMathY(pos.y);
+
+                    state.angle = Math.atan2(mathY - state.circle.y, mathX - state.circle.x);
+                    if (state.angle < 0) state.angle += Math.PI * 2;
+
+                    const deg = Math.round((state.angle * 180) / Math.PI);
+                    angleSlider.value = deg;
+                    angleValueText.textContent = `${deg}°`;
+                    render();
+                }
+            }
+
+            function handleEnd() {
+                state.isDraggingP = false;
+            }
+
+            canvas.addEventListener('mousedown', handleStart);
+            canvas.addEventListener('mousemove', handleMove);
+            window.addEventListener('mouseup', handleEnd);
+
+            canvas.addEventListener('touchstart', handleStart, { passive: true });
+            canvas.addEventListener('touchmove', handleMove, { passive: true });
+            window.addEventListener('touchend', handleEnd);
+        }
+
+        window.addEventListener('load', () => {
+            calculateLocusCircle();
+            updateCanvasSize();
+            autoFitViewport();
+            updateSolutionExplanation();
+            setupEventListeners();
+            render();
+        });
+
+        window.addEventListener('resize', () => {
+            updateCanvasSize();
+        });
+
+        const resizeObserver = new ResizeObserver(() => {
+            updateCanvasSize();
+        });
+        if (container) {
+            resizeObserver.observe(container);
+        }
+    </script>
+</body>
+</html>
