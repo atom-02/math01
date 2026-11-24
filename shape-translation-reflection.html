@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            chtml: { matchFontHeight: false }
+        };
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <title>도형의 이동 인터랙티브 앱</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- D3.js for SVG manipulation and interactions -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        /* Base typography and background */
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+
+        /* Canvas container styles ensuring responsive aspect ratio */
+        #canvas-container { position: relative; width: 100%; max-width: 600px; margin: 0 auto; aspect-ratio: 1; }
+        svg { width: 100%; height: 100%; background-color: white; border-radius: 0.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+
+        /* Grid and axes SVG styles */
+        .grid-line { stroke: #e2e8f0; stroke-width: 1; }
+        .axis-line { stroke: #64748b; stroke-width: 2; }
+        .axis-text { font-size: 12px; fill: #64748b; user-select: none; }
+
+        /* Shape styles: original (f), target (g), and current interactive shape */
+        .shape-f { fill: rgba(239, 68, 68, 0.2); stroke: #ef4444; stroke-width: 2; }
+        .shape-g { fill: rgba(59, 130, 246, 0.2); stroke: #3b82f6; stroke-width: 2; stroke-dasharray: 4; }
+        .shape-current { fill: rgba(16, 185, 129, 0.4); stroke: #10b981; stroke-width: 3; cursor: grab; transition: fill 0.2s; }
+        .shape-current:active { cursor: grabbing; fill: rgba(16, 185, 129, 0.6); }
+        .app-shell { width: 100%; max-width: 1440px; }
+        @media (min-width: 1024px) {
+            body { padding: 0.75rem !important; overflow: hidden; }
+            .app-shell { height: calc(100vh - 1.5rem); margin-bottom: 0 !important; overflow: hidden; }
+            .app-grid { height: calc(100% - 3rem); grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr); }
+            #canvas-container { width: min(100%, calc(100vh - 7rem)); max-width: none; max-height: calc(100vh - 7rem); }
+            .app-panel { min-width: 0; overflow-y: auto; overscroll-behavior: contain; padding-right: .25rem; }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex flex-col items-center min-h-screen">
+
+    <div class="app-shell max-w-4xl w-full bg-white rounded-xl shadow-lg p-6 mb-8">
+        <h1 class="text-2xl font-bold text-slate-800 mb-4 text-center">도형의 평행이동과 대칭이동</h1>
+
+        <div class="app-grid grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Left Side: Interactive SVG Canvas -->
+            <div id="canvas-container"></div>
+
+            <!-- Right Side: Control Panel and Information -->
+            <div class="app-panel flex flex-col gap-6">
+
+                <!-- Instructions panel -->
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <h2 class="text-lg font-semibold text-slate-700 mb-2">목표</h2>
+                    <p class="text-sm text-slate-600 mb-2">
+                        <span class="text-red-500 font-bold">빨간색 도형 $f(x,y)=0$</span>을 이동시켜
+                        <span class="text-blue-500 font-bold">파란색 점선 도형 $g(x,y)=0$</span>과 완전히 겹치게 만드세요.
+                    </p>
+                    <p class="text-sm text-slate-600">
+                        현재 조작 중인 도형은 <span class="text-emerald-500 font-bold">초록색</span>입니다.
+                        마우스로 드래그하여 평행이동 할 수 있습니다.
+                    </p>
+                </div>
+
+                <!-- Reflection controls -->
+                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                    <h3 class="font-medium text-slate-700 mb-3">대칭 이동 (Reflection)</h3>
+                    <div class="flex gap-2">
+                        <button id="btn-flip-x" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 px-4 rounded transition-colors border border-slate-300 font-medium">
+                            x축 대칭
+                        </button>
+                        <button id="btn-flip-y" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 px-4 rounded transition-colors border border-slate-300 font-medium">
+                            y축 대칭
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Live Equation Display -->
+                <div class="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                    <h3 class="font-medium text-slate-700 mb-3">현재 상태 방정식</h3>
+                    <div class="bg-slate-800 text-emerald-400 font-mono p-4 rounded text-center text-xl shadow-inner tracking-wide">
+                        <span id="equation-display">f(x, y) = 0</span>
+                    </div>
+                </div>
+
+                <!-- Reset Button -->
+                <div class="mt-auto">
+                    <button id="btn-reset" class="w-full bg-red-50 hover:bg-red-100 text-red-600 py-3 px-4 rounded font-bold transition-colors border border-red-200">
+                        초기화 (처음부터 다시)
+                    </button>
+                </div>
+
+                <!-- Success Message (Hidden by default) -->
+                <div id="success-message" class="hidden bg-emerald-100 border-2 border-emerald-400 text-emerald-800 px-4 py-4 rounded-lg relative text-center shadow-sm" role="alert">
+                    <strong class="font-bold text-lg block mb-1">축하합니다! 🎉</strong>
+                    <span class="block text-sm">두 도형이 완벽히 겹쳤습니다. 위 방정식을 확인해 보세요.</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. Canvas and Coordinate System Setup ---
+        const container = d3.select('#canvas-container');
+        // Logical viewBox dimensions
+        const width = 600;
+        const height = 600;
+
+        const svg = container.append('svg')
+            .attr('viewBox', `0 0 ${width} ${height}`)
+            .attr('preserveAspectRatio', 'xMidYMid meet');
+
+        // Coordinate system domain (from -8 to 8 on both axes)
+        const domain = [-8, 8];
+
+        // Scales mapping logical coordinates to SVG pixels
+        // X-axis: Left to Right
+        const xScale = d3.scaleLinear().domain(domain).range([0, width]);
+        // Y-axis: Bottom to Top (SVG's native y is top to bottom, so we invert the range)
+        const yScale = d3.scaleLinear().domain(domain).range([height, 0]);
+
+        // Helper function to convert an array of logical {x, y} points into an SVG polygon points string
+        const toPointsString = (pts) => pts.map(p => `${xScale(p.x)},${yScale(p.y)}`).join(' ');
+
+        // --- 2. Draw Grid and Axes ---
+        const gGrid = svg.append('g').attr('class', 'grid');
+
+        // Iterate through the domain to draw grid lines and labels
+        for (let i = domain[0]; i <= domain[1]; i++) {
+            // Vertical grid lines
+            gGrid.append('line')
+                .attr('class', 'grid-line')
+                .attr('x1', xScale(i)).attr('x2', xScale(i))
+                .attr('y1', 0).attr('y2', height);
+
+            // Horizontal grid lines
+            gGrid.append('line')
+                .attr('class', 'grid-line')
+                .attr('y1', yScale(i)).attr('y2', yScale(i))
+                .attr('x1', 0).attr('x2', width);
+
+            // Add text labels for even numbers (excluding origin to prevent clutter)
+            if (i !== 0 && i % 2 === 0) {
+                // X-axis labels
+                gGrid.append('text')
+                    .attr('class', 'axis-text')
+                    .attr('x', xScale(i))
+                    .attr('y', yScale(0) + 15) // Slightly below x-axis
+                    .attr('text-anchor', 'middle')
+                    .text(i);
+
+                // Y-axis labels
+                gGrid.append('text')
+                    .attr('class', 'axis-text')
+                    .attr('x', xScale(0) - 8) // Slightly left of y-axis
+                    .attr('y', yScale(i) + 4) // Vertically centered roughly
+                    .attr('text-anchor', 'end')
+                    .text(i);
+            }
+        }
+        // Origin label
+        gGrid.append('text').attr('class', 'axis-text').attr('x', xScale(0) - 10).attr('y', yScale(0) + 15).text('O');
+
+        // Draw bold main axes (x=0 and y=0 lines)
+        svg.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', width).attr('y1', yScale(0)).attr('y2', yScale(0));
+        svg.append('line').attr('class', 'axis-line').attr('x1', xScale(0)).attr('x2', xScale(0)).attr('y1', 0).attr('y2', height);
+
+        // --- 3. Shape Definitions ---
+
+        // Base shape f(x,y)=0 points (The "L" shape standing up)
+        const originalPts = [
+            {x: 3, y: 0},
+            {x: 5, y: 0},
+            {x: 5, y: 2},
+            {x: 4, y: 2},
+            {x: 4, y: 1},
+            {x: 3, y: 1}
+        ];
+
+        // Target shape g(x,y)=0 points
+        // Changed to match the user's uploaded image exactly:
+        // x-axis reflection, then translated by x=-7, y=-2
+        const targetPts = [
+            {x: -4, y: -2},
+            {x: -2, y: -2},
+            {x: -2, y: -4},
+            {x: -3, y: -4},
+            {x: -3, y: -3},
+            {x: -4, y: -3}
+        ];
+
+        // Draw static original f(x,y) in red
+        svg.append('polygon')
+            .attr('class', 'shape-f')
+            .attr('points', toPointsString(originalPts));
+
+        // Draw static target g(x,y) in dashed blue
+        svg.append('polygon')
+            .attr('class', 'shape-g')
+            .attr('points', toPointsString(targetPts));
+
+        // Add shape labels
+        svg.append('text').attr('x', xScale(4)).attr('y', yScale(2.3)).attr('fill', '#ef4444').attr('text-anchor', 'middle').text('f(x,y)=0').style('font-style', 'italic');
+        svg.append('text').attr('x', xScale(-6)).attr('y', yScale(-4.5)).attr('fill', '#3b82f6').attr('text-anchor', 'middle').text('g(x,y)=0').style('font-style', 'italic');
+
+        // --- 4. Interactive State & Logic ---
+
+        // State object tracking transformations applied to the original shape
+        let state = {
+            pts: JSON.parse(JSON.stringify(originalPts)), // Deep copy of points for rendering
+            tx: 0, // Total translation along X axis
+            ty: 0, // Total translation along Y axis
+            flipX: false, // Is flipped over X axis? (y -> -y)
+            flipY: false  // Is flipped over Y axis? (x -> -x)
+        };
+
+        // Create the interactive SVG polygon element
+        const currentShape = svg.append('polygon')
+            .attr('class', 'shape-current')
+            .attr('points', toPointsString(state.pts));
+
+        // Function to mathematically derive and update the displayed equation based on state
+        function updateEquationDisplay() {
+            // Equation structure: g(x,y) = f(a, b) = 0
+            // If current point is (X, Y) and original is (x, y)
+            // Sequence: Flip -> Translate
+            // X = (x * (flipY ? -1 : 1)) + tx
+            // Y = (y * (flipX ? -1 : 1)) + ty
+            // To write f(x,y) in terms of current coordinates (X,Y):
+            // x = (X - tx) / (flipY ? -1 : 1) = (X - tx) * (flipY ? -1 : 1)
+            // y = (Y - ty) / (flipX ? -1 : 1) = (Y - ty) * (flipX ? -1 : 1)
+
+            let termX = 'x';
+            if (state.tx !== 0) {
+                // If tx is positive, it's x - tx. If negative, x + |tx|
+                termX = `x ${state.tx > 0 ? '-' : '+'} ${Math.abs(state.tx)}`;
+            }
+            if (state.flipY) {
+                // Multiply the whole term by -1
+                termX = `-x ${state.tx > 0 ? '+' : '-'} ${Math.abs(state.tx)}`;
+                if (state.tx === 0) termX = '-x';
+            }
+
+            let termY = 'y';
+            if (state.ty !== 0) {
+                termY = `y ${state.ty > 0 ? '-' : '+'} ${Math.abs(state.ty)}`;
+            }
+            if (state.flipX) {
+                termY = `-y ${state.ty > 0 ? '+' : '-'} ${Math.abs(state.ty)}`;
+                if (state.ty === 0) termY = '-y';
+            }
+
+            document.getElementById('equation-display').innerText = `f(${termX}, ${termY}) = 0`;
+        }
+
+        // Apply translations and reflections to original points to get current points
+        function applyTransformation() {
+            state.pts = originalPts.map(p => ({
+                x: (state.flipY ? -p.x : p.x) + state.tx,
+                y: (state.flipX ? -p.y : p.y) + state.ty
+            }));
+
+            // Update SVG visually
+            currentShape.attr('points', toPointsString(state.pts));
+
+            updateEquationDisplay();
+            checkSuccess();
+        }
+
+        // --- 5. Drag Behavior (Translation) ---
+        let dragStartX, dragStartY;
+        let initialTx, initialTy;
+
+        const drag = d3.drag()
+            .on('start', (event) => {
+                // Record starting mouse position and initial translation state
+                dragStartX = event.x;
+                dragStartY = event.y;
+                initialTx = state.tx;
+                initialTy = state.ty;
+                currentShape.classed('dragging', true);
+            })
+            .on('drag', (event) => {
+                // Calculate logical distance moved
+                // Using xScale/yScale.invert to convert screen pixels back to coordinate values
+                const dxLogical = xScale.invert(event.x) - xScale.invert(dragStartX);
+                const dyLogical = yScale.invert(event.y) - yScale.invert(dragStartY);
+
+                // Snap translation to nearest integer to keep it on the grid
+                state.tx = initialTx + Math.round(dxLogical);
+                state.ty = initialTy + Math.round(dyLogical);
+
+                applyTransformation();
+            })
+            .on('end', () => {
+                 currentShape.classed('dragging', false);
+            });
+
+        // Attach drag behavior to the green shape
+        currentShape.call(drag);
+
+        // --- 6. Button Controls (Reflection & Reset) ---
+
+        document.getElementById('btn-flip-x').addEventListener('click', () => {
+            // Flip over X axis.
+            // In coordinate geometry, flipping over X axis negates Y values.
+            // If we are already translated, flipping over the main X axis also negates the Y translation.
+            state.flipX = !state.flipX;
+            state.ty = -state.ty;
+            applyTransformation();
+        });
+
+        document.getElementById('btn-flip-y').addEventListener('click', () => {
+            // Flip over Y axis negates X values and X translation.
+            state.flipY = !state.flipY;
+            state.tx = -state.tx;
+            applyTransformation();
+        });
+
+        document.getElementById('btn-reset').addEventListener('click', () => {
+            // Reset all states to initial values
+            state = { pts: [...originalPts], tx: 0, ty: 0, flipX: false, flipY: false };
+            document.getElementById('success-message').classList.add('hidden');
+            applyTransformation();
+        });
+
+        // --- 7. Win Condition Logic ---
+        function checkSuccess() {
+            // Updated win condition for the correct target shape from the image
+            // Target is: x-axis reflection (flipX = true) and translated by x=-7, y=-2
+
+            if (state.flipX === true && state.flipY === false && state.tx === -7 && state.ty === -2) {
+                // Show success message
+                document.getElementById('success-message').classList.remove('hidden');
+            } else {
+                // Hide if they moved away
+                document.getElementById('success-message').classList.add('hidden');
+            }
+        }
+
+        // Initialize display on load
+        updateEquationDisplay();
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true
+            },
+            chtml: { matchFontHeight: false }
+        };
+    </script>
+    <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <title>최단거리 구하기 인터랙티브 앱</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f1f5f9; }
+
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            aspect-ratio: 1;
+        }
+        svg {
+            width: 100%;
+            height: 100%;
+            background-color: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+
+        /* Grid and axes styles */
+        .grid-line { stroke: #e2e8f0; stroke-width: 1; }
+        .axis-line { stroke: #64748b; stroke-width: 2; }
+        .reference-line { stroke: #94a3b8; stroke-width: 1.5; stroke-dasharray: 4; }
+
+        /* Interactive elements */
+        .point-static { fill: #334155; r: 5; }
+        .point-draggable { fill: #ef4444; stroke: white; stroke-width: 2; r: 7; cursor: grab; transition: r 0.1s; }
+        .point-draggable:active { cursor: grabbing; r: 9; }
+        .point-ghost { fill: #94a3b8; r: 4; opacity: 0.7; }
+
+        /* Paths */
+        .path-current { fill: none; stroke: #f59e0b; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+        .path-optimal { fill: none; stroke: #10b981; stroke-width: 2; stroke-dasharray: 5; opacity: 0; transition: opacity 0.3s; }
+        .path-optimal.visible { opacity: 1; }
+
+        /* Text labels */
+        .label { font-size: 14px; fill: #334155; font-weight: 500; pointer-events: none; user-select: none; }
+        .label-ghost { font-size: 12px; fill: #64748b; pointer-events: none; user-select: none; }
+        .math-text { font-family: 'Times New Roman', Times, serif; font-style: italic; }
+
+        /* Notion full-page viewer: keep the activity and explanation side by side on PC. */
+        .app-shell { width: 100%; max-width: 1440px; }
+        .app-stage { min-width: 0; }
+        .app-panel { min-width: 0; }
+        @media (min-width: 1024px) {
+            body { padding: 0.75rem !important; overflow: hidden; }
+            .app-shell {
+                display: grid !important;
+                grid-template-columns: minmax(0, 3fr) minmax(320px, 2fr);
+                height: calc(100vh - 1.5rem);
+                margin-bottom: 0 !important;
+            }
+            .app-stage {
+                width: auto !important;
+                padding: 1rem !important;
+                overflow: hidden;
+            }
+            .app-panel {
+                width: auto !important;
+                padding: 1rem !important;
+                overflow-y: auto;
+                overscroll-behavior: contain;
+            }
+            #canvas-container {
+                width: min(100%, calc(100vh - 5.5rem));
+                max-width: none;
+                max-height: calc(100vh - 5.5rem);
+            }
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8 flex flex-col items-center min-h-screen">
+
+    <div class="app-shell max-w-5xl w-full bg-white rounded-2xl shadow-xl overflow-hidden mb-8 flex flex-col md:flex-row">
+
+        <!-- Left Side: Interactive Canvas -->
+        <div class="app-stage w-full md:w-3/5 p-6 bg-slate-50 border-r border-slate-100">
+            <h2 class="text-xl font-bold text-slate-800 mb-4 text-center">그래프 뷰</h2>
+            <div id="canvas-container"></div>
+        </div>
+
+        <!-- Right Side: Control Panel & Information -->
+        <div class="app-panel w-full md:w-2/5 p-6 flex flex-col gap-6">
+
+            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                <h2 class="text-lg font-bold text-blue-900 mb-2">문제 설명</h2>
+                <p class="text-sm text-blue-800 leading-relaxed">
+                    두 점 <span class="math-text font-bold">A(-3, 2)</span>, <span class="math-text font-bold">B(3, 4)</span>가 있습니다.<br>
+                    x축 위를 움직이는 점 <span class="math-text text-red-600 font-bold">P</span>와
+                    직선 <span class="math-text">y = x</span> 위를 움직이는 점 <span class="math-text text-red-600 font-bold">Q</span>에 대하여,
+                    <br><br>
+                    선분 길이의 합 <span class="math-text font-bold">AP + PQ + QB</span> 의 최솟값을 찾아보세요.
+                </p>
+                <p class="text-xs text-blue-600 mt-2">
+                    * 빨간색 점 P와 Q를 마우스로 드래그하여 움직일 수 있습니다.
+                </p>
+            </div>
+
+            <!-- Dashboard -->
+            <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex-grow">
+                <h3 class="font-bold text-slate-700 mb-4 flex items-center justify-between">
+                    <span>현재 거리 정보</span>
+                    <span id="optimality-badge" class="hidden text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded-full font-bold">최단 거리 도달!</span>
+                </h3>
+
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-slate-500">AP 길이:</span>
+                        <span id="dist-ap" class="font-mono font-medium text-slate-700">0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-slate-500">PQ 길이:</span>
+                        <span id="dist-pq" class="font-mono font-medium text-slate-700">0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-slate-500">QB 길이:</span>
+                        <span id="dist-qb" class="font-mono font-medium text-slate-700">0.00</span>
+                    </div>
+                    <div class="h-px bg-slate-200 w-full my-2"></div>
+                    <div class="flex justify-between items-center">
+                        <span class="font-bold text-slate-800">총합 (AP+PQ+QB):</span>
+                        <span id="dist-total" class="font-mono font-bold text-xl text-amber-500 transition-colors">0.00</span>
+                    </div>
+                    <div class="flex justify-between items-center mt-2">
+                        <span class="text-sm text-slate-500">이론적 최솟값:</span>
+                        <span id="dist-min-val" class="font-mono font-bold text-emerald-600">?</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="flex flex-col gap-3 mt-auto">
+                <button id="btn-hint" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-3 px-4 rounded-xl transition-colors border border-slate-300">
+                    💡 대칭이동 힌트 보기
+                </button>
+                <button id="btn-solve" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-md shadow-blue-200 hidden">
+                    정답 및 최단경로 확인
+                </button>
+            </div>
+
+            <!-- Solution Explanation (Hidden initially) -->
+            <div id="solution-panel" class="hidden bg-emerald-50 p-4 rounded-xl border border-emerald-200 text-sm text-emerald-800 leading-relaxed">
+                <strong>풀이 과정:</strong><br>
+                1. 점 A(-3, 2)를 x축에 대하여 대칭이동한 점을 <strong>A'</strong>라고 하면, A'(-3, -2)입니다. (AP = A'P)<br>
+                2. 점 B(3, 4)를 직선 y=x에 대하여 대칭이동한 점을 <strong>B'</strong>라고 하면, B'(4, 3)입니다. (QB = QB')<br>
+                3. 따라서 AP + PQ + QB = A'P + PQ + QB' 이며, 이 값은 점 A', P, Q, B'가 <strong>일직선 상에 있을 때 최소</strong>가 됩니다.<br>
+                4. 최솟값은 선분 A'B'의 길이이므로, $\sqrt{(4 - (-3))^2 + (3 - (-2))^2} = \sqrt{7^2 + 5^2} = \sqrt{74}$ 입니다.
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Data and State
+        const ptA = { x: -3, y: 2 };
+        const ptB = { x: 3, y: 4 };
+
+        // Target reflection points for the solution
+        const ptA_prime = { x: ptA.x, y: -ptA.y }; // Reflected across x-axis
+        const ptB_prime = { x: ptB.y, y: ptB.x }; // Reflected across y=x
+
+        // Calculate theoretical minimum distance
+        const exactMinDist = Math.sqrt(Math.pow(ptB_prime.x - ptA_prime.x, 2) + Math.pow(ptB_prime.y - ptA_prime.y, 2));
+
+        // Initial positions for Draggable points
+        let state = {
+            ptP: { x: -1, y: 0 }, // Constrained to y=0
+            ptQ: { x: 1, y: 1 },  // Constrained to y=x
+            showHint: false,
+            showSolution: false
+        };
+
+        // --- Canvas Setup ---
+        const container = d3.select('#canvas-container');
+        const width = 600;
+        const height = 600;
+        const svg = container.append('svg')
+            .attr('viewBox', `0 0 ${width} ${height}`)
+            .attr('preserveAspectRatio', 'xMidYMid meet');
+
+        // Coordinate system domain (from -6 to 6 to show points clearly)
+        const domain = [-6, 6];
+        const xScale = d3.scaleLinear().domain(domain).range([0, width]);
+        const yScale = d3.scaleLinear().domain(domain).range([height, 0]);
+
+        // Helper functions
+        const dist = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+
+        // --- Draw Grid and Axes ---
+        const gGrid = svg.append('g').attr('class', 'grid');
+        for (let i = domain[0]; i <= domain[1]; i++) {
+            // Grid lines
+            gGrid.append('line').attr('class', 'grid-line').attr('x1', xScale(i)).attr('x2', xScale(i)).attr('y1', 0).attr('y2', height);
+            gGrid.append('line').attr('class', 'grid-line').attr('y1', yScale(i)).attr('y2', yScale(i)).attr('x1', 0).attr('x2', width);
+            // Labels
+            if (i !== 0 && i % 2 === 0) {
+                gGrid.append('text').attr('class', 'label-ghost').attr('x', xScale(i) - 5).attr('y', yScale(0) + 15).attr('text-anchor', 'middle').text(i);
+                gGrid.append('text').attr('class', 'label-ghost').attr('x', xScale(0) - 10).attr('y', yScale(i) + 4).attr('text-anchor', 'end').text(i);
+            }
+        }
+        gGrid.append('text').attr('class', 'label-ghost').attr('x', xScale(0) - 10).attr('y', yScale(0) + 15).text('O');
+
+        // y = x line
+        svg.append('line')
+            .attr('class', 'reference-line')
+            .attr('x1', xScale(domain[0])).attr('y1', yScale(domain[0]))
+            .attr('x2', xScale(domain[1])).attr('y2', yScale(domain[1]));
+        svg.append('text').attr('class', 'label').attr('x', xScale(5)).attr('y', yScale(5.5)).text('y=x');
+
+        // Main Axes
+        svg.append('line').attr('class', 'axis-line').attr('x1', 0).attr('x2', width).attr('y1', yScale(0)).attr('y2', yScale(0));
+        svg.append('line').attr('class', 'axis-line').attr('x1', xScale(0)).attr('x2', xScale(0)).attr('y1', 0).attr('y2', height);
+
+        // Axis labels
+        svg.append('text').attr('class', 'label').attr('x', width - 15).attr('y', yScale(0) - 10).text('x');
+        svg.append('text').attr('class', 'label').attr('x', xScale(0) + 10).attr('y', 15).text('y');
+
+        // --- Layers for drawing ---
+        const layerPaths = svg.append('g');
+        const layerGhost = svg.append('g');
+        const layerPoints = svg.append('g');
+
+        // --- Static Points A and B ---
+        layerPoints.append('circle').attr('class', 'point-static').attr('cx', xScale(ptA.x)).attr('cy', yScale(ptA.y));
+        layerPoints.append('text').attr('class', 'label').attr('x', xScale(ptA.x) - 10).attr('y', yScale(ptA.y) - 10).attr('text-anchor', 'end').text(`A(-3, 2)`);
+
+        layerPoints.append('circle').attr('class', 'point-static').attr('cx', xScale(ptB.x)).attr('cy', yScale(ptB.y));
+        layerPoints.append('text').attr('class', 'label').attr('x', xScale(ptB.x) + 10).attr('y', yScale(ptB.y) - 10).text(`B(3, 4)`);
+
+        // --- Ghost Points and Paths (Hint/Solution) ---
+        const ghostAPrime = layerGhost.append('circle').attr('class', 'point-ghost hidden').attr('cx', xScale(ptA_prime.x)).attr('cy', yScale(ptA_prime.y));
+        const labelAPrime = layerGhost.append('text').attr('class', 'label-ghost hidden').attr('x', xScale(ptA_prime.x) - 10).attr('y', yScale(ptA_prime.y) + 20).attr('text-anchor', 'end').text(`A'(-3, -2)`);
+        const lineAAprime = layerGhost.append('line').attr('class', 'reference-line hidden').attr('x1', xScale(ptA.x)).attr('y1', yScale(ptA.y)).attr('x2', xScale(ptA_prime.x)).attr('y2', yScale(ptA_prime.y));
+
+        const ghostBPrime = layerGhost.append('circle').attr('class', 'point-ghost hidden').attr('cx', xScale(ptB_prime.x)).attr('cy', yScale(ptB_prime.y));
+        const labelBPrime = layerGhost.append('text').attr('class', 'label-ghost hidden').attr('x', xScale(ptB_prime.x) + 10).attr('y', yScale(ptB_prime.y) + 20).text(`B'(4, 3)`);
+        const lineBBprime = layerGhost.append('line').attr('class', 'reference-line hidden').attr('x1', xScale(ptB.x)).attr('y1', yScale(ptB.y)).attr('x2', xScale(ptB_prime.x)).attr('y2', yScale(ptB_prime.y));
+
+        const optimalPath = layerPaths.append('line')
+            .attr('class', 'path-optimal')
+            .attr('x1', xScale(ptA_prime.x)).attr('y1', yScale(ptA_prime.y))
+            .attr('x2', xScale(ptB_prime.x)).attr('y2', yScale(ptB_prime.y));
+
+        // --- Interactive Elements (P, Q, and Path) ---
+        const currentPath = layerPaths.append('polyline').attr('class', 'path-current');
+
+        const ptP_UI = layerPoints.append('circle').attr('class', 'point-draggable');
+        const ptP_Label = layerPoints.append('text').attr('class', 'label font-bold text-red-600').text('P');
+
+        const ptQ_UI = layerPoints.append('circle').attr('class', 'point-draggable');
+        const ptQ_Label = layerPoints.append('text').attr('class', 'label font-bold text-red-600').text('Q');
+
+        // Function to update visuals and dashboard based on state
+        function updateUI() {
+            // Update UI positions
+            ptP_UI.attr('cx', xScale(state.ptP.x)).attr('cy', yScale(state.ptP.y));
+            ptP_Label.attr('x', xScale(state.ptP.x) - 5).attr('y', yScale(state.ptP.y) + 20);
+
+            ptQ_UI.attr('cx', xScale(state.ptQ.x)).attr('cy', yScale(state.ptQ.y));
+            ptQ_Label.attr('x', xScale(state.ptQ.x) - 15).attr('y', yScale(state.ptQ.y) - 10);
+
+            // Update Polyline
+            currentPath.attr('points', `${xScale(ptA.x)},${yScale(ptA.y)} ${xScale(state.ptP.x)},${yScale(state.ptP.y)} ${xScale(state.ptQ.x)},${yScale(state.ptQ.y)} ${xScale(ptB.x)},${yScale(ptB.y)}`);
+
+            // Calculate distances
+            const d1 = dist(ptA, state.ptP);
+            const d2 = dist(state.ptP, state.ptQ);
+            const d3 = dist(state.ptQ, ptB);
+            const total = d1 + d2 + d3;
+
+            // Update Dashboard texts
+            document.getElementById('dist-ap').innerText = d1.toFixed(2);
+            document.getElementById('dist-pq').innerText = d2.toFixed(2);
+            document.getElementById('dist-qb').innerText = d3.toFixed(2);
+            document.getElementById('dist-total').innerText = total.toFixed(2);
+
+            // Check for optimality (allow small float error)
+            const isOptimal = Math.abs(total - exactMinDist) < 0.05;
+
+            const totalEl = document.getElementById('dist-total');
+            const badgeEl = document.getElementById('optimality-badge');
+
+            if (isOptimal) {
+                totalEl.classList.remove('text-amber-500');
+                totalEl.classList.add('text-emerald-600');
+                badgeEl.classList.remove('hidden');
+                currentPath.attr('stroke', '#10b981'); // Turn path green
+            } else {
+                totalEl.classList.add('text-amber-500');
+                totalEl.classList.remove('text-emerald-600');
+                badgeEl.classList.add('hidden');
+                currentPath.attr('stroke', '#f59e0b');
+            }
+        }
+
+        // --- Drag Behaviors ---
+        const dragP = d3.drag().on('drag', (event) => {
+            // Constrain P to x-axis (y=0)
+            let newX = xScale.invert(event.x);
+            // Limit bounds to domain
+            newX = Math.max(domain[0], Math.min(domain[1], newX));
+            state.ptP = { x: newX, y: 0 };
+            updateUI();
+        });
+
+        const dragQ = d3.drag().on('drag', (event) => {
+            // Constrain Q to line y=x.
+            // We project mouse position onto the line y=x.
+            // Vector representation of line: (t, t)
+            const mouseX = xScale.invert(event.x);
+            const mouseY = yScale.invert(event.y);
+            // Projection of (mouseX, mouseY) onto line y=x is simply ((x+y)/2, (x+y)/2)
+            let projected = (mouseX + mouseY) / 2;
+            projected = Math.max(domain[0], Math.min(domain[1], projected));
+            state.ptQ = { x: projected, y: projected };
+            updateUI();
+        });
+
+        ptP_UI.call(dragP);
+        ptQ_UI.call(dragQ);
+
+        // --- Button Handlers ---
+        document.getElementById('btn-hint').addEventListener('click', function() {
+            state.showHint = true;
+            this.classList.add('hidden');
+            document.getElementById('btn-solve').classList.remove('hidden');
+
+            // Reveal ghosts
+            ghostAPrime.classed('hidden', false);
+            labelAPrime.classed('hidden', false);
+            lineAAprime.classed('hidden', false);
+
+            ghostBPrime.classed('hidden', false);
+            labelBPrime.classed('hidden', false);
+            lineBBprime.classed('hidden', false);
+
+            // Show A'P and B'Q lines conceptually? No, standard line is enough.
+        });
+
+        document.getElementById('btn-solve').addEventListener('click', function() {
+            state.showSolution = true;
+            this.classList.add('hidden');
+
+            // Show math solution text
+            document.getElementById('solution-panel').classList.remove('hidden');
+
+            // Show theoretical min value in dashboard
+            document.getElementById('dist-min-val').innerText = exactMinDist.toFixed(2) + ` (√74)`;
+
+            // Show optimal straight line path A' -> B'
+            optimalPath.classed('visible', true);
+
+            // Optional: Automatically snap P and Q to optimal positions
+            // The line equation for A'(-3, -2) to B'(4, 3) is y - 3 = (5/7)(x - 4) -> 7y - 21 = 5x - 20 -> 5x - 7y + 1 = 0
+            // Intersect with y=0 (x-axis) for optimal P: 5x + 1 = 0 -> x = -1/5 = -0.2
+            // Intersect with y=x for optimal Q: 5x - 7x + 1 = 0 -> -2x = -1 -> x = 0.5, y = 0.5
+
+            d3.select(state).transition().duration(1000).tween("updatePoints", function() {
+                const startP = { ...this.ptP };
+                const startQ = { ...this.ptQ };
+                const endP = { x: -0.2, y: 0 };
+                const endQ = { x: 0.5, y: 0.5 };
+
+                return function(t) {
+                    state.ptP.x = startP.x + (endP.x - startP.x) * t;
+                    state.ptQ.x = startQ.x + (endQ.x - startQ.x) * t;
+                    state.ptQ.y = startQ.y + (endQ.y - startQ.y) * t;
+                    updateUI();
+                };
+            });
+        });
+
+        // Initialize display
+        updateUI();
+
+    </script>
+</body>
+</html>
